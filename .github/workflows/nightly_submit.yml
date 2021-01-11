@@ -1,0 +1,33 @@
+name: Submit
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+
+jobs:
+
+  nightly-submit:
+    name: Submit Nightly Builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Arrow
+        shell: bash
+        run: git clone https://github.com/apache/arrow
+      - name: Checkout Crossbow
+        shell: bash
+        run: git clone https://github.com/ursa-labs/crossbow
+      - name: Setup Conda
+        uses: s-weigand/setup-conda@v1
+        with:
+          conda-channels: "conda-forge"
+      - name: Install Dependencies
+        shell: bash
+        run: conda install -y --file arrow/ci/conda_env_crossbow.txt
+      - name: Submit Nightlies
+        shell: bash
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN }}
+        run: |
+          arrow/dev/tasks/crossbow.py submit \
+            --job-prefix nightly-$(date -I) \
+            --group nightly
