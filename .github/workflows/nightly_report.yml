@@ -1,0 +1,41 @@
+name: Report
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+
+jobs:
+
+  nightly-report:
+    name: Send Nightly Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Arrow
+        shell: bash
+        run: git clone https://github.com/apache/arrow
+      - name: Checkout Crossbow
+        shell: bash
+        run: git clone https://github.com/ursa-labs/crossbow
+      - name: Setup Conda
+        uses: s-weigand/setup-conda@v1
+        with:
+          conda-channels: "conda-forge"
+      - name: Install Dependencies
+        shell: bash
+        run: conda install -y --file arrow/ci/conda_env_crossbow.txt
+      - name: Send Report
+        shell: bash
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN }}
+          CROSSBOW_REPORT_SMTP_USER: ${{ secrets.CROSSBOW_SMTP_USER }}
+          CROSSBOW_REPORT_SMTP_PASSWORD: ${{ secrets.CROSSBOW_SMTP_PASSWORD }}
+        run: |
+          job_prefix=nightly-$(date -I)
+          job_id=$(arrow/dev/tasks/crossbow.py latest-prefix ${job_prefix})
+          echo "Sending report for job ${job_id}..."
+          arrow/dev/tasks/crossbow.py report \
+            --send \
+            --sender-name Crossbow \
+            --sender-email 'crossbow@ursalabs.org' \
+            --recipient-email 'dev@arrow.apache.org' \
+            ${job_id}
