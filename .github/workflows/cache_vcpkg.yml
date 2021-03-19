@@ -1,0 +1,86 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Crossbow Cache
+
+on:
+  # perhaps daily one for keeping the cache warm
+  push:
+
+jobs:
+  vcpkg:
+    name: Cache Vcpkg Packages
+    runs-on: macOS-latest
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v2
+        with:
+          repository: kszucs/arrow
+          ref: mac-wheel-vcpkg
+
+      - name: Install System Dependencies
+        run: brew install bison
+
+      # Restore from cache the previously built ports.
+      # If cache-miss, download and build vcpkg (aka "bootstrap vcpkg").
+      - name: Restore from Cache and Install Vcpkg
+        # Download and build vcpkg, without installing any port.
+        # If content is cached already, it is a no-op.
+        uses: lukka/run-vcpkg@v7.1
+        with:
+          setupOnly: true
+          appendedCacheKey: "wheel"
+          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          vcpkgGitCommitId: fced4bef1606260f110d74de1ae1975c2b9ac549
+
+      - name: Patch Vcpkg Ports
+        run: |
+          cd $VCPKG_ROOT
+          if ! git apply --reverse --check --ignore-whitespace ${GITHUB_WORKSPACE}/ci/vcpkg/ports.patch; then
+            git apply --ignore-whitespace ${GITHUB_WORKSPACE}/ci/vcpkg/ports.patch
+          fi
+
+      # Now that vcpkg is installed, it is being used to run with the desired arguments.
+      - name: Install Packages
+        env:
+          VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg
+          VCPKG_DEFAULT_TRIPLET: x64-osx-static-release
+          VCPKG_FEATURE_FLAGS: "-manifests"
+        run: |
+          $VCPKG_ROOT/vcpkg install \
+            abseil \
+            aws-sdk-cpp[config,cognito-identity,core,identity-management,s3,sts,transfer] \
+            boost-filesystem \
+            brotli \
+            bzip2 \
+            c-ares \
+            curl \
+            flatbuffers \
+            gflags \
+            glog \
+            grpc \
+            lz4 \
+            openssl \
+            orc \
+            protobuf \
+            rapidjson \
+            re2 \
+            snappy \
+            thrift \
+            utf8proc \
+            zlib \
+            zstd
