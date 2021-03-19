@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Cache Vcpkg Binaries
+
+on:
+  # perhaps daily one for keeping the cache warm
+  push:
+
+
+jobs:
+  vcpkg:
+    name: "Autobrew"
+    runs-on: macOS-latest
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v2
+        with:
+          repository: apache/arrow
+          branch: master
+
+      # Install latest CMake.
+      - uses: lukka/get-cmake@latest
+
+      # Restore from cache the previously built ports. If a "cache miss" occurs,
+      # then vcpkg is bootstrapped. Since a the vcpkg.json is being used later
+      # on to install the packages when run-cmake runs, no packages are installed
+      # at this time and the input 'setupOnly:true' is mandatory.
+      - name: Restore artifacts, or setup vcpkg (do not install any package)
+        uses: lukka/run-vcpkg@v6
+
+      # Restore from cache the previously built ports.
+      # If cache-miss, download and build vcpkg (aka "bootstrap vcpkg").
+      - name: Restore from cache and install vcpkg
+        # Download and build vcpkg, without installing any port.
+        # If content is cached already, it is a no-op.
+        uses: lukka/run-vcpkg@v6
+        with:
+          setupOnly: true
+          vcpkgGitCommitId: fced4bef1606260f110d74de1ae1975c2b9ac549
+
+      - name: Patch Vcpkg Ports
+        run: cd $VCPKG_ROOT && git apply --ignore-whitespace ${GITHUB_WORKSPACE}/ci/vcpkg/ports.patch
+
+      # Now that vcpkg is installed, it is being used to run with the desired arguments.
+      - run: |
+          $VCPKG_ROOT/vcpkg install \
+            abseil \
+            aws-sdk-cpp[config,cognito-identity,core,identity-management,s3,sts,transfer] \
+            boost-filesystem \
+            brotli \
+            bzip2
