@@ -21,6 +21,11 @@ on:
   # perhaps daily one for keeping the cache warm
   push:
 
+env:
+  VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg
+  VCPKG_DEFAULT_TRIPLET: x64-osx-static-release
+  VCPKG_FEATURE_FLAGS: "-manifests"
+
 jobs:
   vcpkg:
     name: Cache Vcpkg Packages
@@ -28,7 +33,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        macos_deployment_target: ["10.09", "10.13"]
+        macos:
+          - "10.09"
+          - "10.13"
+        include:
+          - macos: "10.09"
+            enable_s3: false
+          - macos: "10.13"
+            enable_s3: true
     env:
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
     steps:
@@ -63,14 +75,9 @@ jobs:
 
       # Now that vcpkg is installed, it is being used to run with the desired arguments.
       - name: Install Packages
-        env:
-          VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg
-          VCPKG_DEFAULT_TRIPLET: x64-osx-static-release
-          VCPKG_FEATURE_FLAGS: "-manifests"
         run: |
           $VCPKG_ROOT/vcpkg install \
             abseil \
-            aws-sdk-cpp[config,cognito-identity,core,identity-management,s3,sts,transfer] \
             boost-filesystem \
             brotli \
             bzip2 \
@@ -91,3 +98,7 @@ jobs:
             utf8proc \
             zlib \
             zstd
+
+      - name: Install AWS SDK C++
+        if: ${{ matrix.enable_s3 }}
+        run: $VCPKG_ROOT/vcpkg install aws-sdk-cpp[config,cognito-identity,core,identity-management,s3,sts,transfer]
