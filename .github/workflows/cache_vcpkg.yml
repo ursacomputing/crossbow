@@ -25,6 +25,11 @@ jobs:
   vcpkg:
     name: Cache Vcpkg Packages
     runs-on: macOS-latest
+    strategy:
+      matrix:
+        macos_deployment_target: ["10.09", "10.13"]
+    env:
+      MACOSX_DEPLOYMENT_TARGET: {{ macos_deployment_target }}
     steps:
       - name: Checkout Arrow
         uses: actions/checkout@v2
@@ -43,8 +48,8 @@ jobs:
         uses: kszucs/run-vcpkg@main
         with:
           setupOnly: true
-          appendedCacheKey: "wheel"
-          vcpkgDirectory: ${{ github.workspace }}/vcpkg
+          appendedCacheKey: "-macos-${{ macos_deployment_target }}"
+          vcpkgDirectory: "${{ github.workspace }}/vcpkg"
           vcpkgGitCommitId: fced4bef1606260f110d74de1ae1975c2b9ac549
 
       - name: Patch Vcpkg Ports
