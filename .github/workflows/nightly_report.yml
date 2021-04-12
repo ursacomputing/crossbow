@@ -1,6 +1,7 @@
 name: Report
 
 on:
+  push:
   schedule:
     - cron: '0 10 * * *'
 
@@ -20,9 +21,9 @@ jobs:
         uses: s-weigand/setup-conda@v1
         with:
           conda-channels: "conda-forge"
-      - name: Install Dependencies
+      - name: Install Archery
         shell: bash
-        run: conda install -y --file arrow/ci/conda_env_crossbow.txt
+        run: pip install -e dev/archery[crossbow]
       - name: Send Report
         shell: bash
         env:
@@ -31,9 +32,9 @@ jobs:
           CROSSBOW_REPORT_SMTP_PASSWORD: ${{ secrets.CROSSBOW_SMTP_PASSWORD }}
         run: |
           job_prefix=nightly-$(date -I)
-          job_id=$(arrow/dev/tasks/crossbow.py latest-prefix ${job_prefix})
+          job_id=$(archery crossbow latest-prefix ${job_prefix})
           echo "Sending report for job ${job_id}..."
-          arrow/dev/tasks/crossbow.py report \
+          archery crossbow report \
             --send \
             --sender-name Crossbow \
             --sender-email 'crossbow@ursalabs.org' \
