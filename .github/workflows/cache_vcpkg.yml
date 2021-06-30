@@ -60,28 +60,22 @@ jobs:
       - name: Install System Dependencies
         run: brew install bison coreutils ninja cmake
 
+      - uses: actions/cache@v2
+        id: vcpkg-cache
+        with:
+          path: vcpkg
+          key: vcpkg-${{ matrix.macos_version }}-${{ env.VCPKG_VERSION }}-${{ hashFiles('arrow/ci/vcpkg/**') }}-1
+
       - name: Install Vcpkg
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
         shell: bash
         run: arrow/ci/scripts/install_vcpkg.sh $VCPKG_VERSION ./vcpkg
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            vcpkg/buildtrees
-            vcpkg/downloads
-            vcpkg/installed
-            vcpkg/packages
-          key: vcpkg-${{ matrix.macos_version }}-${{ env.VCPKG_VERSION }}-${{ hashFiles('vcpkg/ports/**') }}-1
 
       # Now that vcpkg is installed, it is being used to run with the desired arguments.
       - name: Install Packages
         run: |
           vcpkg/vcpkg install \
             abseil \
-            boost-filesystem \
-            brotli \
-            orc \
-            openssl \
             rapidjson
 
       # - name: Install Packages
@@ -109,6 +103,6 @@ jobs:
       #       zlib \
       #       zstd
 
-      - name: Install AWS SDK C++
-        if: ${{ matrix.enable_s3 }}
-        run: vcpkg/vcpkg install aws-sdk-cpp[config,cognito-identity,core,identity-management,s3,sts,transfer]
+      # - name: Install AWS SDK C++
+      #   if: ${{ matrix.enable_s3 }}
+      #   run: vcpkg/vcpkg install aws-sdk-cpp[config,cognito-identity,core,identity-management,s3,sts,transfer]
