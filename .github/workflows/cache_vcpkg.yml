@@ -27,6 +27,7 @@ on:
         0 12 * * *
 
 env:
+  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
   VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/arrow/ci/vcpkg
   VCPKG_DEFAULT_TRIPLET: amd64-osx-static-release
   VCPKG_FEATURE_FLAGS: "-manifests"
@@ -71,11 +72,15 @@ jobs:
       - name: Install Vcpkg
         shell: bash
         run: |
-          [ -d "vcpkg" ] || arrow/ci/scripts/install_vcpkg.sh vcpkg $VCPKG_VERSION
+          [ -d "vcpkg" ] || arrow/ci/scripts/install_vcpkg.sh $VCPKG_ROOT $VCPKG_VERSION
+
+      - name: Add Vcpkg to PATH
+        shell: bash
+        run: echo ${VCPKG_ROOT} >> $GITHUB_PATH
 
       # workaround for https://github.com/apache/arrow/pull/11569#issuecomment-979592053
       - name: Install OpenSSL
-        run: vcpkg/vcpkg install openssl
+        run: vcpkg install openssl
 
       - name: Install Packages
-        run: vcpkg/vcpkg install --clean-after-build --x-install-root=vcpkg/installed
+        run: cd arrow && vcpkg install --clean-after-build --x-install-root=$VCPKG_ROOT/installed
