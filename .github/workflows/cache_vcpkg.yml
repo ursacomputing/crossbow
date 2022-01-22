@@ -41,11 +41,7 @@ jobs:
         macos_version:
           - "10.9"
           - "10.13"
-        include:
-          - macos_version: "10.9"
-            enable_s3: false
-          - macos_version: "10.13"
-            enable_s3: true
+
     env:
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_version }}
     steps:
@@ -55,7 +51,7 @@ jobs:
           repository: apache/arrow
           path: arrow
           # ARROW-14171: [C++] add google-cloud-cpp to vcpkg #11569
-          ref: refs/pull/11569/head
+          ref: refs/pull/12227/head
 
       - name: Retrieve VCPKG version from arrow/.env
         shell: bash
@@ -82,31 +78,4 @@ jobs:
         run: vcpkg/vcpkg install openssl
 
       - name: Install Packages
-        run: |
-          vcpkg/vcpkg install \
-            abseil \
-            boost-filesystem \
-            brotli \
-            bzip2 \
-            c-ares \
-            curl \
-            flatbuffers \
-            gflags \
-            glog \
-            google-cloud-cpp[core,storage] \
-            grpc \
-            lz4 \
-            openssl \
-            orc \
-            protobuf \
-            rapidjson \
-            re2 \
-            snappy \
-            thrift \
-            utf8proc \
-            zlib \
-            zstd
-
-      - name: Install AWS SDK C++
-        if: ${{ matrix.enable_s3 }}
-        run: vcpkg/vcpkg install aws-sdk-cpp[config,cognito-identity,core,identity-management,s3,sts,transfer]
+        run: vcpkg/vcpkg install --clean-after-build --x-install-root=vcpkg/installed
