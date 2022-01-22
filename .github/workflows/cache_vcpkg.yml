@@ -42,6 +42,11 @@ jobs:
         macos_version:
           - "10.9"
           - "10.13"
+        include:
+          - macos_version: "10.9"
+            extra_feature: ""
+          - macos_version: "10.13"
+            extra_feature: "--x-feature=s3"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_version }}
@@ -51,7 +56,7 @@ jobs:
         with:
           repository: apache/arrow
           path: arrow
-          # ARROW-14171: [C++] add google-cloud-cpp to vcpkg #11569
+          # [Python][Packaging] Use vcpkg manifest and update vcpkg version (#12227)
           ref: refs/pull/12227/head
 
       - name: Retrieve VCPKG version from arrow/.env
@@ -86,4 +91,8 @@ jobs:
         run: |
           vcpkg install \
             --x-manifest-root=arrow/cpp \
-            --x-install-root=$VCPKG_ROOT/installed
+            --x-install-root=$VCPKG_ROOT/installed \
+            --x-no-default-features \
+            --x-feature=flight \
+            --x-feature=gcs \
+            --x-feature=json ${{ extra_feature }}
