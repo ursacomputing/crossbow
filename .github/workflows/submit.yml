@@ -1,0 +1,32 @@
+name: Submit
+
+on:
+  workflow_call:
+    inputs:
+      report_type:
+        required: true
+        type: string
+
+jobs:
+
+  nightly-submit:
+    name: Submit nightly ${{ report_type }} builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Arrow
+        shell: bash
+        run: git clone https://github.com/apache/arrow
+      - name: Checkout Crossbow
+        shell: bash
+        run: git clone https://github.com/ursacomputing/crossbow
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: Install Archery
+        shell: bash
+        run: pip install -e arrow/dev/archery[crossbow]
+      - name: Submit Nightlies
+        shell: bash
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN }}
+        run: archery crossbow submit --job-prefix nightly-${{ report_type }}-$(date -I) --group nightly-${{ report_type }}
