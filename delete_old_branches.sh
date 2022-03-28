@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Copy of https://gist.github.com/antonio/4586456
 # With a modification to collect all delete the branches in batches
