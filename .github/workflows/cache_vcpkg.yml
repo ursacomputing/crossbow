@@ -18,6 +18,20 @@
 name: Crossbow Cache
 
 on:
+  workflow_dispatch:
+    inputs:
+      vcpkg-version:
+        description: 'VCPKG Version to use in building the cache.'
+        required: true
+        default: ''
+      arrow-repo:
+        description: 'Repository to checkout arrow from.'
+        required: true
+        default: 'apache/arrow'
+      arrow-ref:
+        description: 'Ref to checkout from arrow-repo.'
+        required: true
+        default: 'master'
   # perhaps daily one for keeping the cache warm
   push:
     paths:
@@ -48,14 +62,19 @@ jobs:
       - name: Checkout Arrow
         uses: actions/checkout@v2
         with:
-          repository: apache/arrow
+          repository: ${{ github.event.inputs.arrow-repo }}
           path: arrow
-          ref: master
+          ref: ${{ github.event.inputs.arrow-ref}}
 
       - name: Retrieve VCPKG version from arrow/.env
         shell: bash
         run: |
-          vcpkg_version=$(cat "arrow/.env" | grep "VCPKG" | cut -d "=" -f2 | tr -d '"')
+          if [ -z "${{ github.event.inputs.vcpkg-version }}"]; then
+            vcpkg_version=$(cat "arrow/.env" | grep "VCPKG" | cut -d "=" -f2 | tr -d '"')
+          else
+            vcpkg_version=${{ github.event.inputs.vcpkg-version }}
+          fi
+          
           echo "VCPKG_VERSION=$vcpkg_version" >> $GITHUB_ENV
 
       - name: Install System Dependencies
