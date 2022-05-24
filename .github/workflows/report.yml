@@ -28,8 +28,10 @@ jobs:
         shell: bash
         run: git clone https://github.com/apache/arrow
       - name: Checkout Crossbow
-        shell: bash
-        run: git clone https://github.com/ursacomputing/crossbow
+        uses: actions/checkout@v3
+        with:
+          path: crossbow
+          fetch-depth: 0
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
@@ -72,6 +74,9 @@ jobs:
             --save \
             --no-fetch \
             ${job_id}
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Commit CSV report
+        uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: Auto commit ${job_id} csv
+          commit_message: Auto commit nightly-${{ inputs.report_type }} CSV
+          repository: crossbow
+          file_pattern: csv_reports/*.csv
