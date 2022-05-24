@@ -21,7 +21,7 @@ on:
 jobs:
 
   nightly-report:
-    name: Send nightly ${{ inputs.report_type }} report
+    name: Send and build nightly ${{ inputs.report_type }} report
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Arrow
@@ -66,3 +66,12 @@ jobs:
             --no-fetch \
             --webhook ${{ secrets.CROSSBOW_ZULIP_WEBHOOK }} \
             ${job_id}
+          echo "Generating ${job_id} CSV ..."
+          cd crossbow/csv_reports
+          archery crossbow report-csv \
+            --save \
+            --no-fetch \
+            ${job_id}
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Auto commit ${job_id} csv
