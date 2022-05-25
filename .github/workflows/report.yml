@@ -75,8 +75,15 @@ jobs:
             --no-fetch \
             ${job_id}
       - name: Commit CSV report
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: Auto commit nightly-${{ inputs.report_type }} CSV
-          repository: crossbow
-          file_pattern: csv_reports/*.csv
+        shell: bash
+        run: |
+          job_prefix=nightly-${{ inputs.report_type }}-$(date -I)
+          cd crossbow
+          echo "Adding file to repo"
+          git add csv_reports/*.csv
+          echo "Commit CSV"
+          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+            commit -m "Auto commit ${job_prefix} CSV" \
+            --author="${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
+          echo "Pushing to repo"
+          git push origin
