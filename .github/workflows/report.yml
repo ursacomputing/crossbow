@@ -21,15 +21,17 @@ on:
 jobs:
 
   nightly-report:
-    name: Send nightly ${{ inputs.report_type }} report
+    name: Send and build nightly ${{ inputs.report_type }} report
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Arrow
         shell: bash
         run: git clone https://github.com/apache/arrow
       - name: Checkout Crossbow
-        shell: bash
-        run: git clone https://github.com/ursacomputing/crossbow
+        uses: actions/checkout@v3
+        with:
+          path: crossbow
+          fetch-depth: 0
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
@@ -66,3 +68,21 @@ jobs:
             --no-fetch \
             --webhook ${{ secrets.CROSSBOW_ZULIP_WEBHOOK }} \
             ${job_id}
+          echo "Generating ${job_id} CSV ..."
+          cd crossbow/csv_reports
+          archery crossbow report-csv \
+            --save \
+            --no-fetch \
+            ${job_id}
+      - name: Commit CSV report
+        shell: bash
+        run: |
+          job_prefix=nightly-${{ inputs.report_type }}-$(date -I)
+          cd crossbow
+          echo "Adding file to repo"
+          git add csv_reports/*.csv
+          echo "Commit CSV"
+          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+            commit -m "Auto commit ${job_prefix} CSV"
+          echo "Pushing to repo"
+          git push origin
