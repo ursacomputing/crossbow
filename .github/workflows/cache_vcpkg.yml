@@ -62,19 +62,17 @@ jobs:
       - name: Checkout Arrow
         uses: actions/checkout@v2
         with:
-          repository: ${{ github.event.inputs.arrow-repo }}
+          repository: ${{ github.event.inputs.arrow-repo || 'apache/arrow'}}
           path: arrow
-          ref: ${{ github.event.inputs.arrow-ref}}
-
+          ref: ${{ github.event.inputs.arrow-ref || 'master'}}
       - name: Retrieve VCPKG version from arrow/.env
         shell: bash
         run: |
-          if [ -z "${{ github.event.inputs.vcpkg-version }}"]; then
+          if [ -z "${{ github.event.inputs.vcpkg-version }}" ]; then
             vcpkg_version=$(cat "arrow/.env" | grep "VCPKG" | cut -d "=" -f2 | tr -d '"')
           else
-            vcpkg_version=${{ github.event.inputs.vcpkg-version }}
+            vcpkg_version="${{ github.event.inputs.vcpkg-version }}"
           fi
-          
           echo "VCPKG_VERSION=$vcpkg_version" >> $GITHUB_ENV
 
       - name: Install System Dependencies
@@ -84,7 +82,7 @@ jobs:
         id: vcpkg-cache
         with:
           path: vcpkg
-          key: vcpkg-${{ matrix.macos_version }}-${{ env.VCPKG_VERSION }}-${{ hashFiles('arrow/ci/vcpkg/vcpkg.json', 'arrow/ci/vcpkg/*.patch', 'arrow/ci/vcpkg/*osx*.cmake') }}-0
+          key: vcpkg-${{ matrix.macos_version }}-${{ env.VCPKG_VERSION }}-${{ hashFiles('arrow/ci/vcpkg/vcpkg.json', 'arrow/ci/vcpkg/*.patch', 'arrow/ci/vcpkg/*osx*.cmake') }}-1
 
       - name: Install Vcpkg
         shell: bash
