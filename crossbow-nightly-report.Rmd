@@ -1,0 +1,132 @@
+---
+title: "Crossbow Nightly Report"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE, 
+  echo = FALSE,
+  fig.width = 8
+  )
+
+library(readr)
+library(ggplot2)
+library(gt)
+library(dplyr)
+library(glue)
+library(purrr)
+library(tidyr)
+library(gh)
+library(tools)
+```
+
+```{r helper}
+arrow_commit_links <- function(sha) {
+  glue("<p><a href='https://github.com/apache/arrow/commit/{sha}' target='_blank'>{substring(sha, 1, 7)}</a></p>")
+}
+
+make_nice_names <- function(x) {
+  toTitleCase(gsub("_", " ", names(x)))
+}
+```
+
+
+```{r data load}
+#| messages = FALSE
+
+cols <- c(
+  "task_name", "task_build_status", "build_links", "task_branch_name_on_the_crossbow_repo",
+  "task_ci_type", "extra_params", "task_template_used", "arrow_repository_commit"
+)
+
+csv_paths <- list.files("csv_reports", pattern = "*.csv", full.names = TRUE)
+nightly <- map_df(csv_paths, read_csv, .id = "file_path") %>%
+  mutate(build_links = gsub("\\?.*","", gsub("\\['|'\\]", "", build_links))) %>%
+  mutate(nightly_name = file_path_sans_ext(
+    basename(csv_paths[file_path %>% as.numeric()])
+  )) %>%
+  mutate(build_type = toTitleCase(gsub("[0-9]|nightly|-", "", nightly_name))) %>%
+  mutate(nightly_date = as.Date(gsub("nightly-packaging-|nightly-release-|nightly-tests-", "", nightly_name)))
+
+most_recent_commit <- unique(nightly$arrow_commit[nightly$nightly_date == max(nightly$nightly_date)])
+```
+
+<a href='https://arrow.apache.org/'><img src='https://arrow.apache.org/img/arrow-logo_hex_black-txt_white-bg.png' align="right" height="150" /></a>
+
+This report builds in sync with the email notifications (`builds@arrow.apache.org`). 
+Most recent commit: `r arrow_commit_links(most_recent_commit)`
+
+
+# Summary 
+```{r}
+nightly_summary <- nightly %>% 
+  group_by(build_type) %>% 
+  filter(nightly_date == max(nightly_date)) %>% 
+  ungroup() %>% 
+  count(nightly_date, arrow_commit, build_type, task_status) %>% 
+  pivot_wider(names_from = task_status, values_from = n, values_fill = 0) %>% 
+  mutate(arrow_commit = arrow_commit_links(arrow_commit)) %>% 
+  arrange(desc(nightly_date)) 
+
+names(nightly_summary) <- make_nice_names(nightly_summary)
+
+nightly_summary %>% 
+  gt() %>% 
+  fmt_markdown("Arrow Commit")
+```
+
+
+
+# Trend
+```{r table, echo=FALSE}
+nightly %>% 
+  count(nightly_date, build_type, task_status) %>% 
+  group_by(nightly_date, build_type) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  filter(task_status == "success") %>% 
+  ggplot(aes(x = nightly_date, y = prop, group = build_type, colour = build_type)) +
+  geom_point() +
+  geom_smooth(method = 'loess', formula = y ~ x, se = FALSE) +
+  geom_hline(yintercept = 1, colour = "green", linetype = 3) +
+  labs(x = "Date", title = "Proportion of runs that are successful") +
+  scale_colour_viridis_d() +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(),
+        plot.title.position = "plot",
+        legend.title = element_blank(),
+        legend.position = "top")
+```
+
+# Error Logs {.tabset}
+
+```{r results='asis'}
+for (.x in rev(unique(nightly$nightly_date))) {
+  nightly_sub <- nightly %>%
+    filter(nightly_date == .x)
+
+  cat(glue("\n## {unique(nightly_sub$nightly_date)}"), "\n")
+
+  nightly_sub_tbl <- nightly_sub %>%
+    filter(task_status == "failure") %>%
+    select(task_name, build_type, build_links, crossbow_branch_url) %>%
+    mutate(
+      build_links = glue("[{basename(build_links)}]({build_links})"),
+      task_branch_name = glue("[{basename(crossbow_branch_url)}]({crossbow_branch_url})")
+    ) %>%
+    select(-crossbow_branch_url) 
+  
+  names(nightly_sub_tbl) <- make_nice_names(nightly_sub_tbl)
+  
+  nightly_sub_tbl %>% 
+    gt() %>%
+    fmt_markdown(c("Build Links", "Task Branch Name")) %>%
+    print()
+}
+```
+
+
+
+
