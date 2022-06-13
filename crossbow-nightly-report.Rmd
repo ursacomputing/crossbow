@@ -122,7 +122,16 @@ bs_nightly <- nightly %>%
   group_by(task_name, build_type)  %>% 
   arrange(desc(nightly_date)) %>% 
   summarise(run_summary = consec_runs(task_status)) %>% 
-  ungroup()
+  ungroup() 
+
+## find last successful commit
+last_successful_commit <- nightly %>% 
+  group_by(task_name, build_type) %>% 
+  filter(task_status == "success") %>% 
+  filter(nightly_date == max(nightly_date)) %>% 
+  mutate(arrow_commit = arrow_commit_links(arrow_commit)) %>% 
+  ungroup() %>% 
+  select(task_name, build_type, arrow_commit)
 
 
 for (.x in unique(bs_nightly$build_type)) {
@@ -131,27 +140,15 @@ for (.x in unique(bs_nightly$build_type)) {
   bs_nightly_tbl <- bs_nightly %>%
     filter(build_type == .x) %>% 
     filter(grepl("since last", run_summary)) %>% 
-    select(-build_type)
+    left_join(last_successful_commit, by = c("task_name", "build_type")) %>% 
+    select(-build_type) 
 
-  names(bs_nightly_tbl)  <- make_nice_names(bs_nightly_tbl)
+  names(bs_nightly_tbl) <- make_nice_names(bs_nightly_tbl)
 
   bs_nightly_tbl %>%
     gt() %>%
     cols_align("left") %>% 
-    # tab_style(
-    # style = list(
-    #   cell_fill(color = "#fde805")
-    #   ),
-    #  locations = cells_body(
-    #   rows = Sorter == 0
-    # )) %>% 
-    #     tab_style(
-    # style = list(
-    #   cell_fill(color = "#c5fb9f")
-    #   ),
-    #  locations = cells_body(
-    #   rows = Sorter == 1
-    # )) %>% 
+    fmt_markdown("Arrow Commit") %>% 
     print()
 }
 ```
