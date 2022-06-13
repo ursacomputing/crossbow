@@ -18,13 +18,13 @@ library(dplyr)
 library(glue)
 library(purrr)
 library(tidyr)
-library(gh)
+library(cli)
 library(tools)
 ```
 
 ```{r helper}
 arrow_commit_links <- function(sha) {
-  glue("<p><a href='https://github.com/apache/arrow/commit/{sha}' target='_blank'>{substring(sha, 1, 7)}</a></p>")
+  glue("<a href='https://github.com/apache/arrow/commit/{sha}' target='_blank'>{substring(sha, 1, 7)}</a>")
 }
 
 make_nice_names <- function(x) {
@@ -41,12 +41,11 @@ cols <- c(
   "task_ci_type", "extra_params", "task_template_used", "arrow_repository_commit"
 )
 
-csv_paths <- list.files("csv_reports", pattern = "*.csv", full.names = TRUE)
-nightly <- map_df(csv_paths, read_csv, .id = "file_path") %>%
+csv_paths <- list.files("csv_reports", pattern = "*.csv", full.names = TRUE) %>% 
+    set_names()
+nightly <- map_dfr(csv_paths, read_csv, .id = "file_path") %>%
   mutate(build_links = gsub("\\?.*","", gsub("\\['|'\\]", "", build_links))) %>%
-  mutate(nightly_name = file_path_sans_ext(
-    basename(csv_paths[file_path %>% as.numeric()])
-  )) %>%
+  mutate(nightly_name = file_path_sans_ext(basename(file_path))) %>%
   mutate(build_type = toTitleCase(gsub("[0-9]|nightly|-", "", nightly_name))) %>%
   mutate(nightly_date = as.Date(gsub("nightly-packaging-|nightly-release-|nightly-tests-", "", nightly_name)))
 
@@ -55,8 +54,7 @@ most_recent_commit <- unique(nightly$arrow_commit[nightly$nightly_date == max(ni
 
 <a href='https://arrow.apache.org/'><img src='https://arrow.apache.org/img/arrow-logo_hex_black-txt_white-bg.png' align="right" height="150" /></a>
 
-This report builds in sync with the email notifications (`builds@arrow.apache.org`). 
-Most recent commit: `r arrow_commit_links(most_recent_commit)`
+This report builds in sync with the email notifications (`builds@arrow.apache.org`). Most recent commit: `r arrow_commit_links(most_recent_commit)`
 
 
 # Summary 
@@ -78,7 +76,6 @@ nightly_summary %>%
 ```
 
 
-
 # Trend
 ```{r table, echo=FALSE}
 nightly %>% 
@@ -87,22 +84,81 @@ nightly %>%
   mutate(prop = n/sum(n)) %>% 
   filter(task_status == "success") %>% 
   ggplot(aes(x = nightly_date, y = prop, group = build_type, colour = build_type)) +
-  geom_point() +
+  geom_point(aes(shape = ifelse(prop == 1, "allpass", "fail"))) +
   geom_smooth(method = 'loess', formula = y ~ x, se = FALSE) +
-  geom_hline(yintercept = 1, colour = "green", linetype = 3) +
+  geom_hline(yintercept = 1, colour = "grey", linetype = 3) +
   labs(x = "Date", title = "Proportion of runs that are successful") +
+  guides(colour = "none", shape = "none") +
   scale_colour_viridis_d() +
+  scale_shape_manual(values = c(17, 19)) +
   scale_y_continuous(labels = scales::percent) +
+  scale_x_date(date_breaks = "2 weeks", date_labels = "%b %d") +
   theme_minimal() +
   theme(axis.title.y = element_blank(),
         plot.title.position = "plot",
-        legend.title = element_blank(),
-        legend.position = "top")
+        legend.title = element_blank()) +
+  facet_wrap(~ build_type, nrow = 3)
 ```
+
+# Build Status  {.tabset}
+
+
+
+```{r results="asis"}
+consec_runs <- function(task_status) {
+    rel_val <- rle(task_status)
+    days <- rel_val$lengths[1]
+    status <- rel_val$value[1]
+
+    if (status == "success") {
+        msg  <- cli::pluralize("{days} day{?s} of successful builds")
+    } else {
+        msg  <- cli::pluralize("{days+1} day{?s} since last successful build")
+    }
+    msg
+}
+
+bs_nightly <- nightly %>%
+  group_by(task_name, build_type)  %>% 
+  arrange(desc(nightly_date)) %>% 
+  summarise(run_summary = consec_runs(task_status)) %>% 
+  ungroup() 
+
+## find last successful commit
+last_successful_commit <- nightly %>% 
+  group_by(task_name, build_type) %>% 
+  filter(task_status == "success") %>% 
+  filter(nightly_date == max(nightly_date)) %>% 
+  mutate(arrow_commit = arrow_commit_links(arrow_commit)) %>% 
+  ungroup() %>% 
+  select(task_name, build_type, arrow_commit)
+
+
+for (.x in unique(bs_nightly$build_type)) {
+  cat(glue("\n## {.x}"), "\n")
+
+  bs_nightly_tbl <- bs_nightly %>%
+    filter(build_type == .x) %>% 
+    filter(grepl("since last", run_summary)) %>% 
+    left_join(last_successful_commit, by = c("task_name", "build_type")) %>% 
+    select(-build_type) 
+
+  names(bs_nightly_tbl) <- make_nice_names(bs_nightly_tbl)
+
+  bs_nightly_tbl %>%
+    gt() %>%
+    cols_align("left") %>% 
+    fmt_markdown("Arrow Commit") %>% 
+    print()
+}
+```
+
+
+
 
 # Error Logs {.tabset}
 
-```{r results='asis'}
+```{r error-logs, results='asis'}
 for (.x in rev(unique(nightly$nightly_date))) {
   nightly_sub <- nightly %>%
     filter(nightly_date == .x)
