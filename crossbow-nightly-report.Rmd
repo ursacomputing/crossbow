@@ -8,7 +8,8 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE, 
   echo = FALSE,
-  fig.width = 8
+  fig.width = 8, 
+  fig.height = 6
   )
 
 library(readr)
@@ -20,6 +21,7 @@ library(purrr)
 library(tidyr)
 library(cli)
 library(tools)
+library(tibble)
 ```
 
 ```{r helper}
@@ -29,6 +31,54 @@ arrow_commit_links <- function(sha) {
 
 make_nice_names <- function(x) {
   toTitleCase(gsub("_", " ", names(x)))
+}
+
+arrow_build_table <- function(nightly_data, x, y) {
+  ordered_only_recent_fails <- nightly_data %>%
+    filter(build_type == x) %>%
+    filter(task_name == y) %>%
+    filter(task_name %in% task_name[nightly_date == max(nightly_date) & task_status != "success"]) %>%
+    arrange(desc(nightly_date))
+
+  if (nrow(ordered_only_recent_fails) == 0) {
+    return(tibble())
+  }
+
+  ## find first failure index
+  idx_recent_fail <- rle(ordered_only_recent_fails$task_status)$lengths[1]
+
+  ## expand failure index and give it some names
+  failure_df <- tibble(fails_plus_one = seq(1, idx_recent_fail + 1)) %>%
+    mutate(fail_label = case_when(
+      fails_plus_one == idx_recent_fail ~ "first_failure", 
+      fails_plus_one == 1 ~ "most_recent_failure",
+      fails_plus_one == idx_recent_fail + 1 ~ "last_successful_build",
+      TRUE ~ paste0("Failure ", fails_plus_one, " days ago")
+    )) 
+
+  ## inner_join to ordered data
+  df <- ordered_only_recent_fails %>%
+    rowid_to_column() %>%
+    inner_join(failure_df, by = c("rowid" = "fails_plus_one")) 
+
+  ## days since last successful build (need to add one)
+  days <- sum(as.numeric(
+    difftime(
+      df$nightly_date[df$fail_label == "most_recent_failure"],
+      df$nightly_date[df$fail_label == "last_successful_build"]
+    )
+  ), 1) 
+
+  df %>%
+    arrange(desc(fail_label)) %>% 
+    mutate(build_links = glue("<a href='{build_links}' target='_blank'>{task_status}</a>")) %>% 
+    select(task_name, build_type, build_links, fail_label) %>%
+    pivot_wider(names_from = fail_label, values_from = build_links) %>%
+    mutate(
+      run_summary = cli::pluralize("{days} day{?s} since last successful build"),
+      last_successful_commit = arrow_commit_links(df$arrow_commit[df$fail_label == "last_successful_build"]), 
+      .after = build_type
+    ) 
 }
 ```
 
@@ -102,53 +152,39 @@ nightly %>%
 
 # Build Status  {.tabset}
 
-
-
 ```{r results="asis"}
-consec_runs <- function(task_status) {
-    rel_val <- rle(task_status)
-    days <- rel_val$lengths[1]
-    status <- rel_val$value[1]
+map_params <- nightly %>% 
+    distinct(task_name, build_type)
 
-    if (status == "success") {
-        msg  <- cli::pluralize("{days} day{?s} of successful builds")
-    } else {
-        msg  <- cli::pluralize("{days+1} day{?s} since last successful build")
-    }
-    msg
-}
+build_table <- map2_df(map_params$build_type, map_params$task_name, ~arrow_build_table(nightly, .x, .y)) 
 
-bs_nightly <- nightly %>%
-  group_by(task_name, build_type)  %>% 
-  arrange(desc(nightly_date)) %>% 
-  summarise(run_summary = consec_runs(task_status)) %>% 
-  ungroup() 
-
-## find last successful commit
-last_successful_commit <- nightly %>% 
-  group_by(task_name, build_type) %>% 
-  filter(task_status == "success") %>% 
-  filter(nightly_date == max(nightly_date)) %>% 
-  mutate(arrow_commit = arrow_commit_links(arrow_commit)) %>% 
-  ungroup() %>% 
-  select(task_name, build_type, arrow_commit)
-
-
-for (.x in unique(bs_nightly$build_type)) {
+for (.x in unique(build_table$build_type)) {
   cat(glue("\n## {.x}"), "\n")
 
-  bs_nightly_tbl <- bs_nightly %>%
-    filter(build_type == .x) %>% 
-    filter(grepl("since last", run_summary)) %>% 
-    left_join(last_successful_commit, by = c("task_name", "build_type")) %>% 
-    select(-build_type) 
+  bs_nightly_tbl <- build_table %>%
+    filter(build_type == .x) %>%
+    select(-build_type) %>% 
+    select(where(~sum(!is.na(.x)) > 0))  %>% ## remove any columns with no data
+    mutate(days_since = as.numeric(gsub("([0-9]+).*$", "\\1", run_summary))) %>% 
+    arrange(desc(days_since)) %>% ## sort by longer fail period
+    select(-days_since)
+  
+  ## Need to sort columns at this level because of variable fail dates
+  ## TODO: find something a little less hacky
+  bs_nightly_tbl <- bs_nightly_tbl[,rev(sort(names(bs_nightly_tbl)))] %>% 
+    relocate(most_recent_failure, .after = last_col()) %>% 
+    relocate(any_of(c("last_successful_build", "first_failure")), .after = last_successful_commit)
 
   names(bs_nightly_tbl) <- make_nice_names(bs_nightly_tbl)
 
   bs_nightly_tbl %>%
     gt() %>%
     cols_align("left") %>% 
-    fmt_markdown("Arrow Commit") %>% 
+    fmt_markdown(matches("success|failure")) %>% 
+    sub_missing(
+      everything(),
+      missing_text = ""
+    ) %>% 
     print()
 }
 ```
