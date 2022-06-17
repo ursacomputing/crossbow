@@ -6,6 +6,10 @@ on:
       report_type:
         required: true
         type: string
+      date:
+        required: false
+        default: ''
+        type: string
     secrets:
       CROSSBOW_GITHUB_TOKEN:
         required: true
@@ -40,12 +44,22 @@ jobs:
       - name: Install Archery
         shell: bash
         run: pip install -e arrow/dev/archery[crossbow]
+      - name: Get Date
+        id: date
+        shell: bash
+        env:
+          DATE: ${{ inputs.date }}
+        run: |
+          if [ -z $DATE ]; then
+            DATE=$(date -I)
+          fi
+          echo "::set-output name=date::$DATE"
       - name: Send Report
         shell: bash
         env:
           CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN }}
         run: |
-          job_prefix=nightly-${{ inputs.report_type }}-$(date -I)
+          job_prefix=nightly-${{ inputs.report_type }}-${{ steps.date.outputs.date }}
           job_id=$(archery crossbow latest-prefix ${job_prefix})
           echo "Sending report for job ${job_id}..."
           archery crossbow report \
@@ -79,7 +93,7 @@ jobs:
       - name: Commit CSV report
         shell: bash
         run: |
-          job_prefix=nightly-${{ inputs.report_type }}-$(date -I)
+          job_prefix=nightly-${{ inputs.report_type }}-${{ steps.date.outputs.date }}
           cd crossbow
           echo "Adding file to repo"
           git add csv_reports/*.csv
