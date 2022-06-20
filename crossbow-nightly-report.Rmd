@@ -22,6 +22,7 @@ library(tidyr)
 library(cli)
 library(tools)
 library(tibble)
+library(lubridate)
 ```
 
 ```{r helper}
@@ -33,10 +34,10 @@ make_nice_names <- function(x) {
   toTitleCase(gsub("_", " ", names(x)))
 }
 
-arrow_build_table <- function(nightly_data, x, y) {
+arrow_build_table <- function(nightly_data, type, task) {
   ordered_only_recent_fails <- nightly_data %>%
-    filter(build_type == x) %>%
-    filter(task_name == y) %>%
+    filter(build_type == type) %>%
+    filter(task_name == task) %>%
     filter(task_name %in% task_name[nightly_date == max(nightly_date) & task_status != "success"]) %>%
     arrange(desc(nightly_date))
 
@@ -158,7 +159,7 @@ nightly %>%
 map_params <- nightly %>%
   distinct(task_name, build_type)
 
-build_table <- map2_df(map_params$build_type, map_params$task_name, ~ arrow_build_table(nightly, .x, .y))
+build_table <- map2_df(map_params$build_type, map_params$task_name, ~ arrow_build_table(nightly, type = .x, task = .y))
 
 for (.x in unique(build_table$build_type)) {
   cat(glue("\n## {.x}"), "\n")
@@ -197,16 +198,18 @@ for (.x in unique(build_table$build_type)) {
 # Error Logs {.tabset}
 
 ```{r error-logs, results='asis'}
-date_order <- rev(sort(unique(as.Date(nightly$nightly_date))))
-for (.x in date_order) {
-  nightly_sub <- nightly %>%
-    filter(nightly_date == .x)
+month_order <- sort(unique(month(as.Date(nightly$nightly_date))))
 
-  cat(glue("\n## {unique(nightly_sub$nightly_date)}"), "\n")
+date_order <- rev(sort(unique(as.Date(nightly$nightly_date))))
+for (.x in month_order) {
+  nightly_sub <- nightly %>%
+    filter(month(nightly_date) == .x)
+
+  cat(glue("\n## {month.abb[.x]}"), "\n")
 
   nightly_sub_tbl <- nightly_sub %>%
     filter(task_status == "failure") %>%
-    select(task_name, build_type, build_links, crossbow_branch_url) %>%
+    select(nightly_date, task_name, build_type, build_links, crossbow_branch_url) %>%
     mutate(
       build_links = glue("[{basename(build_links)}]({build_links})"),
       task_branch_name = glue("[{basename(crossbow_branch_url)}]({crossbow_branch_url})")
