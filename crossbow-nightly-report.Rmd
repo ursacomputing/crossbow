@@ -23,11 +23,24 @@ library(cli)
 library(tools)
 library(tibble)
 library(lubridate)
+
+
+crossbow_theme <- function(data, ...) {
+  data  %>% 
+  tab_options(
+      table.font.size = 14,
+      ...
+    ) 
+}
 ```
 
 ```{r helper}
 arrow_commit_links <- function(sha) {
   glue("<a href='https://github.com/apache/arrow/commit/{sha}' target='_blank'>{substring(sha, 1, 7)}</a>")
+}
+
+format_links <- function(link) {
+  glue("<a href='{link}' target='_blank'>{basename(link)}</a>")
 }
 
 make_nice_names <- function(x) {
@@ -39,7 +52,12 @@ arrow_build_table <- function(nightly_data, type, task) {
     filter(build_type == type) %>%
     filter(task_name == task) %>%
     filter(task_name %in% task_name[nightly_date == max(nightly_date) & task_status != "success"]) %>%
-    arrange(desc(nightly_date))
+    arrange(desc(nightly_date)) %>% 
+    mutate(task_status = case_when(
+      task_status == "success" ~ "pass",
+      task_status == "failure" ~ "fail",
+      TRUE ~ task_status
+    ))
 
   if (nrow(ordered_only_recent_fails) == 0) {
     return(tibble())
@@ -54,7 +72,7 @@ arrow_build_table <- function(nightly_data, type, task) {
       fails_plus_one == idx_recent_fail ~ "first_failure",
       fails_plus_one == 1 ~ "most_recent_failure",
       fails_plus_one == idx_recent_fail + 1 ~ "last_successful_build",
-      TRUE ~ paste0("Failure ", fails_plus_one, " days ago")
+      TRUE ~ paste0(fails_plus_one, " days ago")
     ))
 
   ## inner_join to ordered data
@@ -76,7 +94,7 @@ arrow_build_table <- function(nightly_data, type, task) {
     select(task_name, build_type, build_links, fail_label) %>%
     pivot_wider(names_from = fail_label, values_from = build_links) %>%
     mutate(
-      run_summary = cli::pluralize("{days} day{?s} since last successful build"),
+      since_last_successful_build = days,
       last_successful_commit = arrow_commit_links(df$arrow_commit[df$fail_label == "last_successful_build"]),
       .after = build_type
     )
@@ -148,6 +166,7 @@ nightly %>%
   theme(
     axis.title.y = element_blank(),
     plot.title.position = "plot",
+    strip.text = element_text(size = 12), 
     legend.title = element_blank()
   ) +
   facet_wrap(~build_type, nrow = 3)
@@ -168,9 +187,9 @@ for (.x in unique(build_table$build_type)) {
     filter(build_type == .x) %>%
     select(-build_type) %>%
     select(where(~ sum(!is.na(.x)) > 0)) %>% ## remove any columns with no data
-    mutate(days_since = as.numeric(gsub("([0-9]+).*$", "\\1", run_summary))) %>%
-    arrange(desc(days_since)) %>% ## sort by longer fail period
-    select(-days_since)
+    arrange(desc(since_last_successful_build)) %>% 
+    rowwise() %>% 
+    mutate(since_last_successful_build = cli::pluralize("{since_last_successful_build} day{?s}")) 
 
   ## Need to sort columns at this level because of variable fail dates
   ## TODO: find something a little less hacky
@@ -183,11 +202,13 @@ for (.x in unique(build_table$build_type)) {
   bs_nightly_tbl %>%
     gt() %>%
     cols_align("left") %>%
-    fmt_markdown(matches("success|failure")) %>%
+    cols_width(`Task Name` ~ px(300)) %>% 
+    fmt_markdown(matches("success|failure|days")) %>%
     sub_missing(
       everything(),
       missing_text = ""
     ) %>%
+    crossbow_theme() %>% 
     print()
 }
 ```
@@ -198,9 +219,8 @@ for (.x in unique(build_table$build_type)) {
 # Error Logs {.tabset}
 
 ```{r error-logs, results='asis'}
-month_order <- sort(unique(month(as.Date(nightly$nightly_date))))
+month_order <- rev(sort(unique(month(as.Date(nightly$nightly_date)))))
 
-date_order <- rev(sort(unique(as.Date(nightly$nightly_date))))
 for (.x in month_order) {
   nightly_sub <- nightly %>%
     filter(month(nightly_date) == .x)
@@ -209,18 +229,19 @@ for (.x in month_order) {
 
   nightly_sub_tbl <- nightly_sub %>%
     filter(task_status == "failure") %>%
-    select(nightly_date, task_name, build_type, build_links, crossbow_branch_url) %>%
+    select(nightly_date, task_name, build_type, build_links, task_branch_name = crossbow_branch_url) %>%
     mutate(
-      build_links = glue("[{basename(build_links)}]({build_links})"),
-      task_branch_name = glue("[{basename(crossbow_branch_url)}]({crossbow_branch_url})")
+      build_links = format_links(build_links),
+      task_branch_name = format_links(task_branch_name)
     ) %>%
-    select(-crossbow_branch_url)
+    arrange(desc(nightly_date))
 
   names(nightly_sub_tbl) <- make_nice_names(nightly_sub_tbl)
 
   nightly_sub_tbl %>%
     gt() %>%
     fmt_markdown(c("Build Links", "Task Branch Name")) %>%
+    crossbow_theme() %>% 
     print()
 }
 ```
