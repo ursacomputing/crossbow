@@ -39,6 +39,10 @@ arrow_commit_links <- function(sha) {
   glue("<a href='https://github.com/apache/arrow/commit/{sha}' target='_blank'>{substring(sha, 1, 7)}</a>")
 }
 
+arrow_compare_links <- function(sha1, sha2) {
+  glue("<a href='https://github.com/apache/arrow/compare/{sha1}...{sha2}' target='_blank'>{substring(sha1, 1, 7)}</a>")
+}
+
 format_links <- function(link) {
   glue("<a href='{link}' target='_blank'>{basename(link)}</a>")
 }
@@ -88,6 +92,10 @@ arrow_build_table <- function(nightly_data, type, task) {
     )
   ), 1)
 
+  get_commit <- function(label) {
+    df$arrow_commit[df$fail_label == label]
+  }
+
   df %>%
     arrange(desc(fail_label)) %>%
     mutate(build_links = glue("<a href='{build_links}' target='_blank'>{task_status}</a>")) %>%
@@ -95,7 +103,7 @@ arrow_build_table <- function(nightly_data, type, task) {
     pivot_wider(names_from = fail_label, values_from = build_links) %>%
     mutate(
       since_last_successful_build = days,
-      last_successful_commit = arrow_commit_links(df$arrow_commit[df$fail_label == "last_successful_build"]),
+      last_successful_commit = arrow_compare_links(get_commit("last_successful_build"), get_commit("first_failure")),
       .after = build_type
     )
 }
