@@ -244,11 +244,11 @@ such as whether free memory is returned to the system, is dependent
 on the allocator that gRPC uses (usually the system allocator).
 
 A quick way of testing: attach to the process with a debugger and call
-malloc_trim, or call ReleaseUnused on the system pool. If memory usage
-drops, then likely, there is memory allocated by gRPC or by the
-application that the system allocator was holding on to. This can be
-adjusted in platform-specific ways; see an investigation in JIRA for
-an example of how this works on Linux/glibc.
+malloc_trim, or call :func:`ReleaseUnused <arrow::MemoryPool::ReleaseUnused>`
+on the system pool. If memory usage drops, then likely, there is memory
+allocated by gRPC or by the application that the system allocator was holding
+on to. This can be adjusted in platform-specific ways; see an investigation
+in JIRA for an example of how this works on Linux/glibc.
 
 malloc can be explicitly told to dump caches. See ARROW-16697_ as an example.
 
@@ -275,10 +275,6 @@ consistent quality of service.
          auto options = FlightClientOptions::Defaults();
          // Set the minimum time between subsequent connection attempts.
          options.generic_options.emplace_back(GRPC_ARG_MIN_RECONNECT_BACKOFF_MS, 2000);
-
-   .. tab-item:: Java
-
-      .. code-block:: java
 
    .. tab-item:: Python
 
@@ -314,29 +310,37 @@ Closing unresponsive connections
 
          .. code-block:: cpp
 
-      .. tab-item:: Java
-
-         .. code-block:: java
-
-      .. tab-item:: Python
-
-         .. code-block:: python
+              StopSource stop_source;
+              FlightCallOptions options;
+              options.stop_token = stop_source.token();
+              stop_source.RequestStop(Status::Cancelled("StopSource"));
+              flight_client->DoAction(options, {});
 
 
 2. Use call timeouts. (This is a general gRPC best practice.)
+
    .. tab-set::
 
       .. tab-item:: C++
 
          .. code-block:: cpp
 
+            FlightCallOptions options;
+            options.timeout = TimeoutDuration{0.2};
+            Status status = client->GetFlightInfo(options, FlightDescriptor{}).status();
+
       .. tab-item:: Java
 
          .. code-block:: java
 
+            Iterator<Result> results = client.doAction(new Action("hang"), CallOptions.timeout(0.2, TimeUnit.SECONDS));
+
       .. tab-item:: Python
 
          .. code-block:: python
+
+            options = pyarrow.flight.FlightCallOptions(timeout=0.2)
+
 
 3. Client timeouts are not great for long-running streaming calls, where it may
    be hard to choose a timeout for the entire operation. Instead, what is often
