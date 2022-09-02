@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
-    <title>Basic Arrow Data Structures &#8212; Apache Arrow v10.0.0.dev162</title>
+    <title>Basic Arrow Data Structures &#8212; Apache Arrow v10.0.0.dev166</title>
     
     <link href="../../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
 <link href="../../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
@@ -26,7 +26,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/pydata-sphinx-theme.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/design-style.b7bb847fb20b106c3d81b95245e65545.min.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css" />
     
     <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
@@ -94,7 +94,7 @@
 
 <div id="version-button" class="dropdown">
     <button type="button" class="btn btn-secondary btn-sm navbar-btn dropdown-toggle" id="version_switcher_button" data-toggle="dropdown">
-        10.0.0.dev162
+        10.0.0.dev166
         <span class="caret"></span>
     </button>
     <div id="version_switcher" class="dropdown-menu list-group-flush py-0" aria-labelledby="version_switcher_button">
@@ -4680,23 +4680,79 @@ function checkPageExistsAndRedirect(event) {
 <nav id="bd-toc-nav">
     <ul class="visible nav section-nav flex-column">
  <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#pre-requisites">
+   Pre-requisites
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#setup">
    Setup
   </a>
+  <ul class="visible nav section-nav flex-column">
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#includes">
+     Includes
+    </a>
+   </li>
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#main">
+     Main()
+    </a>
+   </li>
+  </ul>
  </li>
  <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#making-an-arrow-array">
    Making an Arrow Array
   </a>
+  <ul class="visible nav section-nav flex-column">
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#building-int8-arrays">
+     Building int8 Arrays
+    </a>
+   </li>
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#building-int16-arrays">
+     Building int16 Arrays
+    </a>
+   </li>
+  </ul>
  </li>
  <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#making-a-recordbatch">
    Making a RecordBatch
   </a>
+  <ul class="visible nav section-nav flex-column">
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#defining-a-schema">
+     Defining a Schema
+    </a>
+   </li>
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#building-a-recordbatch">
+     Building a RecordBatch
+    </a>
+   </li>
+  </ul>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#making-a-chunkedarray">
+   Making a ChunkedArray
+  </a>
  </li>
  <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#making-a-table">
    Making a Table
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#ending-program">
+   Ending Program
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#wrapping-up">
+   Wrapping Up
   </a>
  </li>
 </ul>
@@ -4733,11 +4789,26 @@ function checkPageExistsAndRedirect(event) {
 <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a>, <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a>, <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>, and <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a>.
 This article shows how to construct these data structures from primitive
 data types; specifically, we will work with integers of varying size
-representing days, months, and years. We will use them to create Arrow <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>
-and <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArrays</span></code></a>, and use those to construct tabular data structures,
-i.e., <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a> and <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a>.</p>
+representing days, months, and years. We will use them to create the following data structures:</p>
+<ol class="arabic simple">
+<li><p>Arrow <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArrays</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>, from <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a></p></li>
+<li><p><a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a>, from <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArrays</span></code></a></p></li>
+</ol>
+<section id="pre-requisites">
+<h2>Pre-requisites<a class="headerlink" href="#pre-requisites" title="Permalink to this heading">¶</a></h2>
+<p>Before continuing, make sure you have:</p>
+<ol class="arabic simple">
+<li><p>An Arrow installation</p></li>
+<li><p>Understanding of how to use basic C++ data structures</p></li>
+<li><p>Understanding of basic C++ data types</p></li>
+</ol>
+</section>
 <section id="setup">
 <h2>Setup<a class="headerlink" href="#setup" title="Permalink to this heading">¶</a></h2>
+<section id="includes">
+<h3>Includes<a class="headerlink" href="#includes" title="Permalink to this heading">¶</a></h3>
 <p>First, as ever, we need some includes. We’ll get <code class="docutils literal notranslate"><span class="pre">iostream</span></code> for output, then import Arrow’s basic
 functionality from <code class="docutils literal notranslate"><span class="pre">api.h</span></code>, like so:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;arrow/api.h&gt;</span><span class="cp"></span>
@@ -4745,6 +4816,9 @@ functionality from <code class="docutils literal notranslate"><span class="pre">
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span><span class="cp"></span>
 </pre></div>
 </div>
+</section>
+<section id="main">
+<h3>Main()<a class="headerlink" href="#main" title="Permalink to this heading">¶</a></h3>
 <p>Next, we need a <code class="docutils literal notranslate"><span class="pre">main()</span></code> – a common pattern with Arrow looks like the
 following:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -4768,16 +4842,19 @@ objects can return – this is where we’ll write the rest of the program:</p>
 </pre></div>
 </div>
 </section>
+</section>
 <section id="making-an-arrow-array">
 <h2>Making an Arrow Array<a class="headerlink" href="#making-an-arrow-array" title="Permalink to this heading">¶</a></h2>
-<p>We want to get the data from an array in standard C++ into an
-Arrow array. We still guarantee contiguity of memory in an <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a>, so no
-worries about a performance loss when using <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> vs C++ arrays.
+<section id="building-int8-arrays">
+<h3>Building int8 Arrays<a class="headerlink" href="#building-int8-arrays" title="Permalink to this heading">¶</a></h3>
+<p>Given that we have some data in standard C++ arrays, and want to use Arrow, we need to move
+the data from said arrays into Arrow arrays. We still guarantee contiguity of memory in an
+<a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a>, so no worries about a performance loss when using <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> vs C++ arrays.
 The easiest way to construct an <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> uses an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a>. &lt;RST
-NOTE NEAR HERE: for more technical details, check out…&gt; The following
-code initializes an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> for an <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> that will hold 8 bit
-integers, and uses the <code class="docutils literal notranslate"><span class="pre">AppendValues()</span></code> method, present in concrete
-<a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">arrow::ArrayBuilder</span></code></a> subclasses, to fill it with the
+NOTE NEAR HERE: for more technical details, check out…&gt;</p>
+<p>The following code initializes an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> for an <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> that will hold 8 bit
+integers. Specifically, it uses the <code class="docutils literal notranslate"><span class="pre">AppendValues()</span></code> method, present in concrete
+<a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">arrow::ArrayBuilder</span></code></a> subclasses, to fill the <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> with the
 contents of a standard C++ array. Note the use of <a class="reference internal" href="../api/support.html#c.ARROW_RETURN_NOT_OK" title="ARROW_RETURN_NOT_OK"><code class="xref c c-macro docutils literal notranslate"><span class="pre">ARROW_RETURN_NOT_OK</span></code></a>.
 If <code class="docutils literal notranslate"><span class="pre">AppendValues()</span></code> fails, this macro will return to <code class="docutils literal notranslate"><span class="pre">main()</span></code>, which will
 print out the meaning of the failure.</p>
@@ -4791,7 +4868,7 @@ print out the meaning of the failure.</p>
 <span class="w">  </span><span class="n">ARROW_RETURN_NOT_OK</span><span class="p">(</span><span class="n">int8builder</span><span class="p">.</span><span class="n">AppendValues</span><span class="p">(</span><span class="n">days_raw</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">));</span><span class="w"></span>
 </pre></div>
 </div>
-<p>Once an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> has the values we want in our <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a>, we can use
+<p>Given an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> has the values we want in our <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a>, we can use
 <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilder6FinishEPNSt10shared_ptrI5ArrayEE" title="arrow::ArrayBuilder::Finish"><code class="xref cpp cpp-func docutils literal notranslate"><span class="pre">ArrayBuilder::Finish()</span></code></a> to output the final structure to an <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> – specifically,
 we output to a <code class="docutils literal notranslate"><span class="pre">std::shared_ptr&lt;arrow::Array&gt;</span></code>. Note the use of <a class="reference internal" href="../api/support.html#c.ARROW_ASSIGN_OR_RAISE" title="ARROW_ASSIGN_OR_RAISE"><code class="xref c c-macro docutils literal notranslate"><span class="pre">ARROW_ASSIGN_OR_RAISE</span></code></a>
 in the following code. <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilder6FinishEPNSt10shared_ptrI5ArrayEE" title="arrow::ArrayBuilder::Finish"><code class="xref cpp cpp-func docutils literal notranslate"><span class="pre">Finish()</span></code></a> outputs a <a class="reference internal" href="../api/support.html#_CPPv4I0EN5arrow6ResultE" title="arrow::Result"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">arrow::Result</span></code></a> object, which <a class="reference internal" href="../api/support.html#c.ARROW_ASSIGN_OR_RAISE" title="ARROW_ASSIGN_OR_RAISE"><code class="xref c c-macro docutils literal notranslate"><span class="pre">ARROW_ASSIGN_OR_RAISE</span></code></a>
@@ -4804,8 +4881,8 @@ the final output to the left-hand variable.</p>
 <span class="w">  </span><span class="n">ARROW_ASSIGN_OR_RAISE</span><span class="p">(</span><span class="n">days</span><span class="p">,</span><span class="w"> </span><span class="n">int8builder</span><span class="p">.</span><span class="n">Finish</span><span class="p">());</span><span class="w"></span>
 </pre></div>
 </div>
-<p>Once an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> has had its <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilder6FinishEPNSt10shared_ptrI5ArrayEE" title="arrow::ArrayBuilder::Finish"><code class="xref cpp cpp-func docutils literal notranslate"><span class="pre">Finish</span></code></a> method called, its state resets, so
-it can be used again, like so:</p>
+<p>As soon as <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> has had its <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilder6FinishEPNSt10shared_ptrI5ArrayEE" title="arrow::ArrayBuilder::Finish"><code class="xref cpp cpp-func docutils literal notranslate"><span class="pre">Finish</span></code></a> method called, its state resets, so
+it can be used again, as if it was fresh. Thus, we repeat the process above for our second array:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// Builders clear their state every time they fill an Array, so if the type is the same,</span>
 <span class="w">  </span><span class="c1">// we can re-use the builder. We do that here for month values.</span>
 <span class="w">  </span><span class="kt">int8_t</span><span class="w"> </span><span class="n">months_raw</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">};</span><span class="w"></span>
@@ -4814,10 +4891,13 @@ it can be used again, like so:</p>
 <span class="w">  </span><span class="n">ARROW_ASSIGN_OR_RAISE</span><span class="p">(</span><span class="n">months</span><span class="p">,</span><span class="w"> </span><span class="n">int8builder</span><span class="p">.</span><span class="n">Finish</span><span class="p">());</span><span class="w"></span>
 </pre></div>
 </div>
-<p>However, an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> cannot have its type changed in the middle of its
-use – we have to make a new one when we switch to year data, which
-requires a 16-bit integer at the minimum. Of course, there’s an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a>
-for that:</p>
+</section>
+<section id="building-int16-arrays">
+<h3>Building int16 Arrays<a class="headerlink" href="#building-int16-arrays" title="Permalink to this heading">¶</a></h3>
+<p>An <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> has its type specified at the time of declaration.
+Once this is done, it cannot have its type changed. We have to make a new one when we switch to year data, which
+requires a 16-bit integer at the minimum. Of course, there’s an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> for that.
+It uses the exact same methods, but with the new data type:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// Now that we change to int16, we use the Builder for that data type instead.</span>
 <span class="w">  </span><span class="n">arrow</span><span class="o">::</span><span class="n">Int16Builder</span><span class="w"> </span><span class="n">int16builder</span><span class="p">;</span><span class="w"></span>
 <span class="w">  </span><span class="kt">int16_t</span><span class="w"> </span><span class="n">years_raw</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1990</span><span class="p">,</span><span class="w"> </span><span class="mi">2000</span><span class="p">,</span><span class="w"> </span><span class="mi">1995</span><span class="p">,</span><span class="w"> </span><span class="mi">2000</span><span class="p">,</span><span class="w"> </span><span class="mi">1995</span><span class="p">};</span><span class="w"></span>
@@ -4828,12 +4908,20 @@ for that:</p>
 </div>
 <p>Now, we have three Arrow <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>, with some variance in type.</p>
 </section>
+</section>
 <section id="making-a-recordbatch">
 <h2>Making a RecordBatch<a class="headerlink" href="#making-a-recordbatch" title="Permalink to this heading">¶</a></h2>
 <p>A columnar data format only really comes into play when you have a table.
 So, let’s make one. The first kind we’ll make is the <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a> – this
 uses <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a> internally, which means all data will be contiguous within each
-column, but any appending or concatenating will require copying.</p>
+column, but any appending or concatenating will require copying. Making a <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>
+has two steps, given existing <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>:</p>
+<ol class="arabic simple">
+<li><p>Defining a <a class="reference internal" href="../api/datatype.html#_CPPv4N5arrow6SchemaE" title="arrow::Schema"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Schema</span></code></a></p></li>
+<li><p>Loading the <a class="reference internal" href="../api/datatype.html#_CPPv4N5arrow6SchemaE" title="arrow::Schema"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Schema</span></code></a> and Arrays into the constructor</p></li>
+</ol>
+<section id="defining-a-schema">
+<h3>Defining a Schema<a class="headerlink" href="#defining-a-schema" title="Permalink to this heading">¶</a></h3>
 <p>To get started making a <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>, we first need to define
 characteristics of the columns, each represented by a <a class="reference internal" href="../api/datatype.html#_CPPv4N5arrow5FieldE" title="arrow::Field"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Field</span></code></a> instance.
 Each <a class="reference internal" href="../api/datatype.html#_CPPv4N5arrow5FieldE" title="arrow::Field"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Field</span></code></a> contains a name and datatype for its associated column; then,
@@ -4855,9 +4943,12 @@ so:</p>
 <span class="w">  </span><span class="n">schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">arrow</span><span class="o">::</span><span class="n">schema</span><span class="p">({</span><span class="n">field_day</span><span class="p">,</span><span class="w"> </span><span class="n">field_month</span><span class="p">,</span><span class="w"> </span><span class="n">field_year</span><span class="p">});</span><span class="w"></span>
 </pre></div>
 </div>
-<p>With data in <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a> and column descriptions in our <a class="reference internal" href="../api/datatype.html#_CPPv4N5arrow6SchemaE" title="arrow::Schema"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Schema</span></code></a>, we can make
-the <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>. Note that the length of the columns is necessary, and
-the length is shared by all columns.</p>
+</section>
+<section id="building-a-recordbatch">
+<h3>Building a RecordBatch<a class="headerlink" href="#building-a-recordbatch" title="Permalink to this heading">¶</a></h3>
+<p>With data in <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a> from the previous section, and column descriptions in our
+<a class="reference internal" href="../api/datatype.html#_CPPv4N5arrow6SchemaE" title="arrow::Schema"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Schema</span></code></a> from the previous step, we can make the <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>. Note that the
+length of the columns is necessary, and the length is shared by all columns.</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// With the schema and Arrays full of data, we can make our RecordBatch! Here,</span>
 <span class="w">  </span><span class="c1">// each column is internally contiguous. This is in opposition to Tables, which we&#39;ll</span>
 <span class="w">  </span><span class="c1">// see next.</span>
@@ -4869,10 +4960,12 @@ the length is shared by all columns.</p>
 <span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">rbatch</span><span class="o">-&gt;</span><span class="n">ToString</span><span class="p">();</span><span class="w"></span>
 </pre></div>
 </div>
-<p>Now, we have our data in a nice tabular form, safely within the <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>.</p>
+<p>Now, we have our data in a nice tabular form, safely within the <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>.
+What we can do with this will be discussed in the later tutorials.</p>
 </section>
-<section id="making-a-table">
-<h2>Making a Table<a class="headerlink" href="#making-a-table" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="making-a-chunkedarray">
+<h2>Making a ChunkedArray<a class="headerlink" href="#making-a-chunkedarray" title="Permalink to this heading">¶</a></h2>
 <p>Let’s say that we want an array made up of sub-arrays, because it
 can be useful for logic, for parallelizing work, for fitting each chunk
 cutely into cache, or for exceeding the 2,147,483,647 row limit in a
@@ -4897,15 +4990,15 @@ using the same builders for ease of use:</p>
 <span class="w">  </span><span class="n">ARROW_ASSIGN_OR_RAISE</span><span class="p">(</span><span class="n">years2</span><span class="p">,</span><span class="w"> </span><span class="n">int16builder</span><span class="p">.</span><span class="n">Finish</span><span class="p">());</span><span class="w"></span>
 </pre></div>
 </div>
-<p>Now, we can get into the magic. First, we’ll get an <code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayVector</span></code> (vector
-of arrays) holding both of our day arrays:</p>
+<p>In order to support an arbitrary amount of <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a> in the construction of the
+<a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a>, Arrow supplies <code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayVector</span></code>. This provides a vector for <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>,
+and we’ll use it here to prepare to make a <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a>:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// ChunkedArrays let us have a list of arrays, which aren&#39;t contiguous</span>
 <span class="w">  </span><span class="c1">// with each other. First, we get a vector of arrays.</span>
 <span class="w">  </span><span class="n">arrow</span><span class="o">::</span><span class="n">ArrayVector</span><span class="w"> </span><span class="n">day_vecs</span><span class="p">{</span><span class="n">days</span><span class="p">,</span><span class="w"> </span><span class="n">days2</span><span class="p">};</span><span class="w"></span>
 </pre></div>
 </div>
-<p>This doesn’t have all the features of a <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a>, so we don’t stop
-here. Instead, we use it to create our <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a>:</p>
+<p>In order to leverage Arrow, we do need to take that last step, and move into a <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a>:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// Then, we use that to initialize a ChunkedArray, which can be used with other</span>
 <span class="w">  </span><span class="c1">// functions in Arrow! This is good, since having a normal vector of arrays wouldn&#39;t</span>
 <span class="w">  </span><span class="c1">// get us far.</span>
@@ -4913,8 +5006,8 @@ here. Instead, we use it to create our <a class="reference internal" href="../ap
 <span class="w">      </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">arrow</span><span class="o">::</span><span class="n">ChunkedArray</span><span class="o">&gt;</span><span class="p">(</span><span class="n">day_vecs</span><span class="p">);</span><span class="w"></span>
 </pre></div>
 </div>
-<p>Now, we have a <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a> for our day values. We’ll repeat that for
-months and years:</p>
+<p>With a <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a> for our day values, we now just need to repeat the process
+for the month and year data:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// Repeat for months.</span>
 <span class="w">  </span><span class="n">arrow</span><span class="o">::</span><span class="n">ArrayVector</span><span class="w"> </span><span class="n">month_vecs</span><span class="p">{</span><span class="n">months</span><span class="p">,</span><span class="w"> </span><span class="n">months</span><span class="p">};</span><span class="w"></span>
 <span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">arrow</span><span class="o">::</span><span class="n">ChunkedArray</span><span class="o">&gt;</span><span class="w"> </span><span class="n">month_chunks</span><span class="w"> </span><span class="o">=</span><span class="w"></span>
@@ -4926,9 +5019,16 @@ months and years:</p>
 <span class="w">      </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">arrow</span><span class="o">::</span><span class="n">ChunkedArray</span><span class="o">&gt;</span><span class="p">(</span><span class="n">year_vecs</span><span class="p">);</span><span class="w"></span>
 </pre></div>
 </div>
-<p>Now, we have <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArrays</span></code></a> which contain our newly extended data in
-bite-sized chunks. A <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a> is specifically for <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>, and its
-counterpart for <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArrays</span></code></a> is the <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a>. Its constructor is
+<p>With that, we are left with three <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArrays</span></code></a>, varying in type.</p>
+</section>
+<section id="making-a-table">
+<h2>Making a Table<a class="headerlink" href="#making-a-table" title="Permalink to this heading">¶</a></h2>
+<p>One particularly useful thing we can do with the <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArrays</span></code></a> from the previous section is creating
+<a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Tables</span></code></a>. Much like a <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>, a <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a> stores tabular data. However, a
+<a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a> does not guarantee contiguity, due to being made up of <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArrays</span></code></a>
+This can be useful for logic, paralellizing work, for fitting chunks into cache, or exceeding the 2,147,483,647 row limit
+present in <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> and, thus, <code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch.</span></code></p>
+<p>If you read up to <a class="reference internal" href="../api/table.html#_CPPv4N5arrow11RecordBatchE" title="arrow::RecordBatch"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">RecordBatch</span></code></a>, you may note that the <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a> constructor in the following code is
 effectively identical, it just happens to put the length of the columns
 in position 3, and makes a <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a>. We re-use the <a class="reference internal" href="../api/datatype.html#_CPPv4N5arrow6SchemaE" title="arrow::Schema"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Schema</span></code></a> from before, and
 make our <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a>:</p>
@@ -4940,12 +5040,20 @@ make our <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5Tab
 <span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">table</span><span class="o">-&gt;</span><span class="n">ToString</span><span class="p">();</span><span class="w"></span>
 </pre></div>
 </div>
-<p>After that, we just return <a class="reference internal" href="../api/support.html#_CPPv4N5arrow6Status2OKEv" title="arrow::Status::OK"><code class="xref cpp cpp-func docutils literal notranslate"><span class="pre">Status::OK()</span></code></a>, so the <code class="docutils literal notranslate"><span class="pre">main()</span></code> knows that
+<p>Now, we have our data in a nice tabular form, safely within the <a class="reference internal" href="../api/table.html#_CPPv4N5arrow5TableE" title="arrow::Table"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Table</span></code></a>.
+What we can do with this will be discussed in the later tutorials.</p>
+</section>
+<section id="ending-program">
+<h2>Ending Program<a class="headerlink" href="#ending-program" title="Permalink to this heading">¶</a></h2>
+<p>At the end, we just return <a class="reference internal" href="../api/support.html#_CPPv4N5arrow6Status2OKEv" title="arrow::Status::OK"><code class="xref cpp cpp-func docutils literal notranslate"><span class="pre">Status::OK()</span></code></a>, so the <code class="docutils literal notranslate"><span class="pre">main()</span></code> knows that
 we’re done, and that everything’s okay.</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">arrow</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">OK</span><span class="p">();</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
+</section>
+<section id="wrapping-up">
+<h2>Wrapping Up<a class="headerlink" href="#wrapping-up" title="Permalink to this heading">¶</a></h2>
 <p>With that, you’ve created the fundamental data structures in Arrow, and
 can proceed to getting them in and out of a program with file I/O:</p>
 <p>&lt;LINK TO NEXT ARTICLE&gt;</p>
