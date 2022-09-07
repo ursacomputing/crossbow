@@ -43,10 +43,16 @@ jobs:
             del_prs = del_prs.filter(x => x).join(" ")
             console.log(`::set-output name=del_prs::${del_prs}`)
       - name: Delete Dirs and Commit
+        if: steps.find.outputs.del_prs != ''
         env:
           pr_ids: ${{ steps.find.outputs.del_prs }}
-        run: |
-          echo $pr_ids
+        run: |      
+          git config --local user.name "Github Actions"
+          git config --local user.email "github-actions@users.noreply.github.com"
 
+          ids=($pr_ids)
+          git rm -r  $(printf 'docs/pr_docs/%s ' "${ids[@]}")
 
-
+          git commit -m "Remove stale previews"
+          git push
+          
