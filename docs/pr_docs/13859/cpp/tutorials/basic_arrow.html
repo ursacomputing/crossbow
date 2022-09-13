@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
-    <title>Basic Arrow Data Structures &#8212; Apache Arrow v10.0.0.dev170</title>
+    <title>Basic Arrow Data Structures &#8212; Apache Arrow v10.0.0.dev177</title>
     
     <link href="../../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
 <link href="../../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
@@ -94,7 +94,7 @@
 
 <div id="version-button" class="dropdown">
     <button type="button" class="btn btn-secondary btn-sm navbar-btn dropdown-toggle" id="version_switcher_button" data-toggle="dropdown">
-        10.0.0.dev170
+        10.0.0.dev177
         <span class="caret"></span>
     </button>
     <div id="version_switcher" class="dropdown-menu list-group-flush py-0" aria-labelledby="version_switcher_button">
@@ -4870,8 +4870,11 @@ objects can return – this is where we’ll write the rest of the program:</p>
 <p>Given that we have some data in standard C++ arrays, and want to use Arrow, we need to move
 the data from said arrays into Arrow arrays. We still guarantee contiguity of memory in an
 <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a>, so no worries about a performance loss when using <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> vs C++ arrays.
-The easiest way to construct an <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> uses an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a>. &lt;RST
-NOTE NEAR HERE: for more technical details, check out…&gt;</p>
+The easiest way to construct an <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> uses an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="../arrays.html"><span class="doc">Arrays</span></a> for more technical details on <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a></p>
+</div>
 <p>The following code initializes an <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> for an <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a> that will hold 8 bit
 integers. Specifically, it uses the <code class="docutils literal notranslate"><span class="pre">AppendValues()</span></code> method, present in concrete
 <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">arrow::ArrayBuilder</span></code></a> subclasses, to fill the <a class="reference internal" href="../api/builder.html#_CPPv4N5arrow12ArrayBuilderE" title="arrow::ArrayBuilder"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ArrayBuilder</span></code></a> with the
@@ -4987,10 +4990,12 @@ What we can do with this will be discussed in the later tutorials.</p>
 <section id="making-a-chunkedarray">
 <h2>Making a ChunkedArray<a class="headerlink" href="#making-a-chunkedarray" title="Permalink to this heading">¶</a></h2>
 <p>Let’s say that we want an array made up of sub-arrays, because it
-can be useful for logic, for parallelizing work, for fitting each chunk
+can be useful for avoiding data copies when concatenating, for parallelizing work, for fitting each chunk
 cutely into cache, or for exceeding the 2,147,483,647 row limit in a
 standard Arrow <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Array</span></code></a>. For this, Arrow offers <a class="reference internal" href="../api/array.html#_CPPv4N5arrow12ChunkedArrayE" title="arrow::ChunkedArray"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">ChunkedArray</span></code></a>, which can be
-made up of individual Arrow <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>. So, let’s build a few more <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>,
+made up of individual Arrow <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>. In this example, we can reuse the arrays
+we made earlier in part of our chunked array, allowing us to extend them without having to copy
+data. So, let’s build a few more <a class="reference internal" href="../api/array.html#_CPPv4N5arrow5ArrayE" title="arrow::Array"><code class="xref cpp cpp-class docutils literal notranslate"><span class="pre">Arrays</span></code></a>,
 using the same builders for ease of use:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="c1">// Now, let&#39;s get some new arrays! It&#39;ll be the same datatypes as above, so we re-use</span>
 <span class="w">  </span><span class="c1">// Builders.</span>
@@ -5075,8 +5080,7 @@ we’re done, and that everything’s okay.</p>
 <section id="wrapping-up">
 <h2>Wrapping Up<a class="headerlink" href="#wrapping-up" title="Permalink to this heading">¶</a></h2>
 <p>With that, you’ve created the fundamental data structures in Arrow, and
-can proceed to getting them in and out of a program with file I/O:</p>
-<p>&lt;LINK TO NEXT ARTICLE&gt;</p>
+can proceed to getting them in and out of a program with file I/O in the next article.</p>
 <p>Refer to the below for a copy of the complete code:</p>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 19</span><span class="c1">// (Doc section: Includes)</span>
 <span class="linenos"> 20</span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;arrow/api.h&gt;</span><span class="cp"></span>
