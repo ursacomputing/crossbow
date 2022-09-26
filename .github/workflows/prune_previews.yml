@@ -12,15 +12,14 @@ jobs:
     name: Remove Stale Previews
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Crossbow
-        uses: actions/checkout@v3
-
-        with:
-          fetch-depth: 0
       - name: Find PRs
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CROSSBOW_DOCS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CROSSBOW_DOCS_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-2
+          BUCKET: s3://voltrondata-labs-crossbow-docs
         run: |
-          cd docs/pr_docs
-          echo "PRs=$(ls -d * | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "PRs=$(aws s3 ls $BUCKET/pr_docs/ | sed 's/PRE//g' | tr -d '/' | tr '\n' ' ')" >> $GITHUB_ENV
       - name: Find open PRs
         uses: actions/github-script@v5
         id: find
@@ -47,13 +46,13 @@ jobs:
         if: steps.find.outputs.del_prs != ''
         env:
           pr_ids: ${{ steps.find.outputs.del_prs }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.CROSSBOW_DOCS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CROSSBOW_DOCS_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-2
+          BUCKET: s3://voltrondata-labs-crossbow-docs
         run: |      
-          git config --local user.name "Github Actions"
-          git config --local user.email "github-actions@users.noreply.github.com"
-
-          ids=($pr_ids)
-          git rm -r  $(printf 'docs/pr_docs/%s ' "${ids[@]}")
-
-          git commit -m "Remove stale previews"
-          git push
+          for id in "${ids[@]}"
+          do
+            aws s3 rm $BUCKET/pr_docs/$id --recursive
+          done
           
