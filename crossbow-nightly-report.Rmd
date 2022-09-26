@@ -26,11 +26,11 @@ library(lubridate)
 
 
 crossbow_theme <- function(data, ...) {
-  data  %>% 
-  tab_options(
+  data %>%
+    tab_options(
       table.font.size = 14,
       ...
-    ) 
+    )
 }
 ```
 
@@ -40,7 +40,12 @@ arrow_commit_links <- function(sha) {
 }
 
 arrow_compare_links <- function(sha1, sha2) {
-  glue("<a href='https://github.com/apache/arrow/compare/{sha1}...{sha2}' target='_blank'>{substring(sha1, 1, 7)}</a>")
+  comp_link <- glue("<a href='https://github.com/apache/arrow/compare/{sha1}...{sha2}' target='_blank'>{substring(sha1, 1, 7)}</a>")
+
+  if (rlang::is_empty(comp_link)) {
+    return(glue("Build has not yet been successful"))
+  }
+  return(comp_link)
 }
 
 format_links <- function(link) {
@@ -52,11 +57,13 @@ make_nice_names <- function(x) {
 }
 
 arrow_build_table <- function(nightly_data, type, task) {
-  ordered_only_recent_fails <- nightly_data %>%
+  type_task_data <- nightly_data %>%
     filter(build_type == type) %>%
-    filter(task_name == task) %>%
+    filter(task_name == task)
+
+  ordered_only_recent_fails <- type_task_data %>%
     filter(task_name %in% task_name[nightly_date == max(nightly_date) & task_status != "success"]) %>%
-    arrange(desc(nightly_date)) %>% 
+    arrange(desc(nightly_date)) %>%
     mutate(task_status = case_when(
       task_status == "success" ~ "pass",
       task_status == "failure" ~ "fail",
@@ -77,20 +84,27 @@ arrow_build_table <- function(nightly_data, type, task) {
       fails_plus_one == 1 ~ "most_recent_failure",
       fails_plus_one == idx_recent_fail + 1 ~ "last_successful_build",
       TRUE ~ paste0(fails_plus_one, " days ago")
-    ))
+    )) %>%
+    filter(fails_plus_one <= 9 | grepl("failure|build", fail_label))
 
   ## inner_join to ordered data
   df <- ordered_only_recent_fails %>%
     rowid_to_column() %>%
     inner_join(failure_df, by = c("rowid" = "fails_plus_one"))
 
-  ## days since last successful build (need to add one)
-  days <- sum(as.numeric(
-    difftime(
-      df$nightly_date[df$fail_label == "most_recent_failure"],
-      df$nightly_date[df$fail_label == "last_successful_build"]
-    )
-  ), 1)
+
+  if (all(type_task_data$task_status %in% "failure")) {
+    days <- NA_real_
+  } else {
+    ## days since last successful build (need to add one)
+    days <- sum(as.numeric(
+      difftime(
+        df$nightly_date[df$fail_label == "most_recent_failure"],
+        df$nightly_date[df$fail_label == "last_successful_build"]
+      )
+    ), 1)
+  }
+
 
   get_commit <- function(label) {
     df$arrow_commit[df$fail_label == label]
@@ -120,8 +134,11 @@ cols <- c(
 
 csv_paths <- list.files("csv_reports", pattern = "*.csv", full.names = TRUE) %>%
   set_names()
+
+## Here is where we tidy the data until a 1 value 1 cell data structure
 nightly <- map_dfr(csv_paths, read_csv, .id = "file_path") %>%
-  mutate(build_links = gsub("\\?.*", "", gsub("\\['|'\\]", "", build_links))) %>%
+  mutate(build_links = gsub("^(.*?),.*", "\\1", build_links)) %>% ## get rid of multiple build links
+  mutate(build_links = gsub("\\?.*", "", gsub("\\['|'\\]|'", "", build_links))) %>% ## gets rid of the extra formatting
   mutate(nightly_name = file_path_sans_ext(basename(file_path))) %>%
   mutate(build_type = toTitleCase(gsub("[0-9]|nightly|-", "", nightly_name))) %>%
   mutate(nightly_date = as.Date(gsub("nightly-packaging-|nightly-release-|nightly-tests-", "", nightly_name)))
@@ -131,35 +148,60 @@ most_recent_commit <- unique(nightly$arrow_commit[nightly$nightly_date == max(ni
 
 <a href='https://arrow.apache.org/'><img src='https://arrow.apache.org/img/arrow-logo_hex_black-txt_white-bg.png' align="right" height="150" /></a>
 
-This report builds in sync with the email notifications (`builds@arrow.apache.org`). Most recent commit: `r arrow_commit_links(most_recent_commit)`
+This report builds in sync with the email notifications (`builds@arrow.apache.org`). `r pluralize('Most recent commit{?s}:  {arrow_commit_links(most_recent_commit)}')`
 
 
 # Summary 
 ```{r}
-nightly_summary <- nightly %>%
+pass_pct <- nightly %>%
+  count(nightly_date, arrow_commit, build_type, task_status) %>%
+  group_by(nightly_date, build_type) %>%
+  mutate(prop = n / sum(n)) %>%
+  filter(task_status == "success") %>%
+  ungroup()
+
+## 1% threshold
+## days
+over_x_days <- 10
+trend <- pass_pct %>%
+  filter(nightly_date > max(nightly_date) - ddays(over_x_days)) %>%
+  nest(data = -build_type) %>%
+  mutate(model = map(data, ~ lm(prop ~ nightly_date, .x))) %>%
+  mutate(slope_pct_day = map_dbl(model, ~ coef(.x)["nightly_date"])) %>%
+  mutate(failure_trend = case_when(
+    slope_pct_day < -0.01 ~ "increasing",
+    slope_pct_day > 0.01 ~ "decreasing",
+    TRUE ~ "stable"
+  )) %>%
+  select(build_type, failure_trend)
+
+
+nightly_summary <- pass_pct %>%
   group_by(build_type) %>%
   filter(nightly_date == max(nightly_date)) %>%
   ungroup() %>%
-  count(nightly_date, arrow_commit, build_type, task_status) %>%
   pivot_wider(names_from = task_status, values_from = n, values_fill = 0) %>%
   mutate(arrow_commit = arrow_commit_links(arrow_commit)) %>%
-  arrange(desc(nightly_date))
+  arrange(desc(nightly_date)) %>%
+  left_join(trend, by = c("build_type"))
 
 names(nightly_summary) <- make_nice_names(nightly_summary)
 
 nightly_summary %>%
   gt() %>%
-  fmt_markdown("Arrow Commit")
+  fmt_markdown("Arrow Commit") %>%
+  tab_footnote(
+    footnote = glue("Trend calculated over {over_x_days} days"),
+    locations = cells_column_labels(
+      columns = `Failure Trend`
+    )
+  )
 ```
 
 
 # Trend
 ```{r table, echo=FALSE}
-nightly %>%
-  count(nightly_date, build_type, task_status) %>%
-  group_by(nightly_date, build_type) %>%
-  mutate(prop = n / sum(n)) %>%
-  filter(task_status == "success") %>%
+pass_pct %>%
   ggplot(aes(x = nightly_date, y = prop, group = build_type, colour = build_type)) +
   geom_point(aes(shape = ifelse(prop == 1, "allpass", "fail"))) +
   geom_smooth(method = "loess", formula = y ~ x, se = FALSE) +
@@ -174,7 +216,7 @@ nightly %>%
   theme(
     axis.title.y = element_blank(),
     plot.title.position = "plot",
-    strip.text = element_text(size = 12), 
+    strip.text = element_text(size = 12),
     legend.title = element_blank()
   ) +
   facet_wrap(~build_type, nrow = 3)
@@ -184,7 +226,7 @@ nightly %>%
 
 ```{r results="asis"}
 map_params <- nightly %>%
-  distinct(task_name, build_type) %>% 
+  distinct(task_name, build_type) %>%
   filter(!task_name %in% c("r-nightly-packages", "test-r-rstudio-r-base-4.2-opensuse42")) # tasks that are no longer active
 
 build_table <- map2_df(map_params$build_type, map_params$task_name, ~ arrow_build_table(nightly, type = .x, task = .y))
@@ -196,9 +238,14 @@ for (.x in unique(build_table$build_type)) {
     filter(build_type == .x) %>%
     select(-build_type) %>%
     select(where(~ sum(!is.na(.x)) > 0)) %>% ## remove any columns with no data
-    arrange(desc(since_last_successful_build)) %>% 
-    rowwise() %>% 
-    mutate(since_last_successful_build = cli::pluralize("{since_last_successful_build} day{?s}")) 
+    arrange(desc(since_last_successful_build)) %>%
+    rowwise() %>%
+    mutate(
+      since_last_successful_build = ifelse(
+        is.na(since_last_successful_build), "-",
+        pluralize("{since_last_successful_build} day{?s}")
+      )
+    )
 
   ## Need to sort columns at this level because of variable fail dates
   ## TODO: find something a little less hacky
@@ -211,13 +258,13 @@ for (.x in unique(build_table$build_type)) {
   bs_nightly_tbl %>%
     gt() %>%
     cols_align("left") %>%
-    cols_width(`Task Name` ~ px(300)) %>% 
+    cols_width(`Task Name` ~ px(300)) %>%
     fmt_markdown(matches("success|failure|days")) %>%
     sub_missing(
       everything(),
       missing_text = ""
     ) %>%
-    crossbow_theme() %>% 
+    crossbow_theme() %>%
     print()
 }
 ```
@@ -228,13 +275,13 @@ for (.x in unique(build_table$build_type)) {
 # Error Logs {.tabset}
 
 ```{r error-logs, results='asis'}
-month_order <- rev(sort(unique(month(as.Date(nightly$nightly_date)))))
+month_year_order <- rev(unique(format(sort(as.Date(nightly$nightly_date)), "%b %Y")))
 
-for (.x in month_order) {
+for (.x in month_year_order) {
   nightly_sub <- nightly %>%
-    filter(month(nightly_date) == .x)
+    filter(format(sort(as.Date(nightly$nightly_date)), "%b %Y") == .x)
 
-  cat(glue("\n## {month.abb[.x]}"), "\n")
+  cat(glue("\n## {.x}"), "\n")
 
   nightly_sub_tbl <- nightly_sub %>%
     filter(task_status == "failure") %>%
@@ -250,11 +297,7 @@ for (.x in month_order) {
   nightly_sub_tbl %>%
     gt() %>%
     fmt_markdown(c("Build Links", "Task Branch Name")) %>%
-    crossbow_theme() %>% 
+    crossbow_theme() %>%
     print()
 }
 ```
-
-
-
-
