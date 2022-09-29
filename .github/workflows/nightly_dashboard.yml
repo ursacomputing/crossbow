@@ -42,12 +42,13 @@ jobs:
       - name: Build Report
         shell: Rscript {0}
         run: |
-          rmarkdown::render("crossbow-nightly-report.Rmd", output_file = "docs/index.html")
-      - name: Commit and Push
+          rmarkdown::render("crossbow-nightly-report.Rmd", output_file = "index.html")
+      - name: Upload result
         shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CROSSBOW_DOCS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CROSSBOW_DOCS_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.CROSSBOW_DOCS_S3_BUCKET_REGION }}
+          BUCKET: ${{ secrets.CROSSBOW_DOCS_S3_BUCKET }}
         run: |
-          git config --local user.name "Github Actions"
-          git config --local user.email "github-actions@users.noreply.github.com"
-          git add *.html
-          git commit -m "Update nightly report"
-          git push
+          aws s3 cp index.html $BUCKET/index.html 
