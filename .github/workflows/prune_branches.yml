@@ -1,6 +1,18 @@
 name: Prune Branches
 
 on:
+  workflow_call:
+    inputs:
+      days:
+        description: 'Branches older than this amount of days will be deleted'
+        required: true
+        default: '90'
+        type: string
+      maximum:
+        description: 'Maximum limit of branches to delete for a single run'
+        required: true
+        default: '500'
+        type: string
   push:
     paths:
       - '.github/workflows/prune_branches.yml'
@@ -12,11 +24,20 @@ jobs:
     name: Remove Old Branches
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Arrow
+        shell: bash
+        run: git clone https://github.com/apache/arrow
       - name: Checkout Crossbow
-        uses: actions/checkout@v2
+        shell: bash
+        run: git clone https://github.com/ursacomputing/crossbow
+      - uses: actions/setup-python@v2
         with:
-          fetch-depth: 0
+          python-version: '3.8'
+      - name: Install Archery
+        shell: bash
+        run: pip install -e arrow/dev/archery[crossbow]
       - name: Delete Branches
+        shell: bash
         env:
-          DRY_RUN: 0
-        run: ./delete_old_branches.sh "90 days ago"
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN }}
+        run: archery crossbow delete-old-branches --days ${{ inputs.days }} --maximum ${{ inputs.maximum }} --dry-run
