@@ -6,6 +6,7 @@ concurrency:
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches: [master, main]
     paths:
@@ -52,7 +53,14 @@ jobs:
         shell: Rscript {0}
         run: |
           rmarkdown::render("crossbow-nightly-report.Rmd", output_file = "index.html")
+      - name: Upload Rendered Dashboard
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v3
+        with:
+          name: dashboard
+          path: crossbow/index.html
       - name: Upload result
+        if: github.event_name == 'push'
         working-directory: crossbow
         shell: bash
         env:
