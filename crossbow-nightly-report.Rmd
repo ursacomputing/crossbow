@@ -23,6 +23,7 @@ library(cli)
 library(tools)
 library(tibble)
 library(lubridate)
+library(yaml)
 
 
 crossbow_theme <- function(data, ...) {
@@ -225,9 +226,19 @@ pass_pct %>%
 # Build Status  {.tabset}
 
 ```{r results="asis"}
+# this file can be generated with `archery crossbow check-config > all.yml`
+tasks <- yaml.load_file("all.yml")
+
+tests <- tasks$groups[["nightly-tests"]]
+packaging <- tasks$groups[["nightly-packaging"]]
+release <- tasks$groups[["nightly-release"]]
+nightly_regex <-  paste0(c(tests, packaging, release), collapse = "|")
+
+active_jobs <- tasks$tasks %>% names() %>% grep(nightly_regex, x = ., value = TRUE)
+
 map_params <- nightly %>%
   distinct(task_name, build_type) %>%
-  filter(!task_name %in% c("r-nightly-packages", "test-r-rstudio-r-base-4.2-opensuse42")) # tasks that are no longer active
+  filter(task_name %in% active_jobs)
 
 build_table <- map2_df(map_params$build_type, map_params$task_name, ~ arrow_build_table(nightly, type = .x, task = .y))
 
