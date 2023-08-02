@@ -27,12 +27,18 @@ jobs:
           script: |
             let prs = "${{ env.PRs }}".split(" ").filter(x => x)
             async function not_open(id) {
-             let pr = await github.rest.pulls.get({
-              "owner": "apache",
-              "repo": "arrow",
-              "pull_number": id
-              })
-              
+             try {
+                let pr = await github.rest.pulls.get({
+                "owner": "apache",
+                "repo": "arrow",
+                "pull_number": id
+                })
+              }
+              catch(err) {
+                # In case of error retrieving PR try to clean it.
+                # Example manually triggered job with different naming.
+                return(id)
+              }
               if(pr.data.state !== "open") {
                 return(id)
               }
