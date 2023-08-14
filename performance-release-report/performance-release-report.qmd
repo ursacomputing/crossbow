@@ -23,6 +23,8 @@ format:
 ```{r setup}
 #| include: false
 
+Sys.unsetenv("CONBENCH_PASSWORD")
+
 baseline_git_commit <- Sys.getenv("BASELINE_GIT_COMMIT") 
 contender_git_commit <-  Sys.getenv("CONTENDER_GIT_COMMIT")
 hardware_name <- "ursa-i9-9960x"
@@ -32,7 +34,6 @@ library(ggplot2)
 library(tidyr)
 library(glue)
 library(purrr)
-library(knitr)
 library(conbenchcoms)
 library(cli)
 library(lubridate)
@@ -62,7 +63,7 @@ theme_set(theme_minimal(base_size = 24, base_family = "roboto") %+replace%
     legend.position = "top"
   ))
   
-knitr::opts_chunk$set(
+opts_chunk$set(
   cache = FALSE,
   echo = FALSE
   )
@@ -79,7 +80,7 @@ contender_git_commit_short <- substr(contender_git_commit, 1, 7)
 runs_raw <- runs(c(baseline_git_commit, contender_git_commit)) 
 
 if (length(runs_raw) == 0) {
-  knitr::knit_exit("No runs found for the given commits. Please check that the commits are correct and that the benchmark runs have completed.")
+  knit_exit("No runs found for the given commits. Please check that the commits are correct and that the benchmark runs have completed.")
 } else {
   run_comp <- runs_raw %>%
     filter(hardware.name == hardware_name) %>%
@@ -105,7 +106,7 @@ if (nrow(hardware_summary) != 2) {
   ## fail early and informatively with when not using correct hardware
   missing_commits <- setdiff(c(contender_git_commit, baseline_git_commit), hardware_summary$commit.sha)
   cat(pluralize("Commit{?s} {missing_commits} w{?as/ere} not benchmarked with {hardware_name} hardware. This report only tests that hardware."))
-  knitr::knit_exit()
+  knit_exit()
 }
 ```
 

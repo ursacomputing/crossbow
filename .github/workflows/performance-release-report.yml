@@ -22,14 +22,20 @@ on:
       rc_label:
         description: 'RC Label'
         required: false
-  repository_dispatch:
-     types: [perf-report]
+      publish:
+        type: boolean
+        description: 'Publish to S3'
+        required: false
+        default: false
 
+permissions:
+  contents: read
+  
 env: 
     ## payload vars
-    BASELINE_GIT_COMMIT: ${{ github.event.client_payload.baseline_git_commit || github.event.inputs.baseline_git_commit }}
-    CONTENDER_GIT_COMMIT: ${{ github.event.client_payload.contender_git_commit || github.event.inputs.contender_git_commit }}
-    RC_LABEL: ${{ github.event.client_payload.rc_label || github.event.inputs.rc_label || 'manual' }}
+    BASELINE_GIT_COMMIT: ${{ github.event.inputs.baseline_git_commit }}
+    CONTENDER_GIT_COMMIT: ${{ github.event.inputs.contender_git_commit }}
+    RC_LABEL: ${{ github.event.inputs.rc_label || 'manual' }}
 
 jobs:
   build:
@@ -70,20 +76,21 @@ jobs:
             to: html
             path: 'performance-release-report/performance-release-report.qmd'
 
-      - name: Upload Rendered Dashboard
+      - name: Upload Rendered Perf Report
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v3
         with:
-          name: dashboard
+          name: perf-report
           path: 'performance-release-report/performance-release-report.html'
-      # - name: Upload result
-      #   if: github.event_name == 'push'
-      #   working-directory: crossbow
-      #   shell: bash
-      #   env:
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.CROSSBOW_DOCS_AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.CROSSBOW_DOCS_AWS_SECRET_ACCESS_KEY }}
-      #     AWS_DEFAULT_REGION: ${{ secrets.CROSSBOW_DOCS_S3_BUCKET_REGION }}
-      #     BUCKET: ${{ secrets.CROSSBOW_DOCS_S3_BUCKET }}
-      #   run: |
-      #     aws s3 cp index.html $BUCKET/index.html 
+
+      - name: Upload result
+        if: ${{ github.event.inputs.publish == 'true' }}
+        working-directory: performance-release-report
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CROSSBOW_DOCS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CROSSBOW_DOCS_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.CROSSBOW_DOCS_S3_BUCKET_REGION }}
+          BUCKET: ${{ secrets.CROSSBOW_DOCS_S3_BUCKET }}
+        run: |
+          aws s3 cp performance-release-report.html $BUCKET/performance-release-report${{ env.RC_LABEL }}.html
