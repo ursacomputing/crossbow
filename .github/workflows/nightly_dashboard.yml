@@ -55,7 +55,7 @@ jobs:
 
       # Needed due to https://github.com/r-lib/actions/issues/618
       - name: Link renv.lock
-        run: ln -sf 'crossbow-nightly-report/renv.lock'
+        run: ln -sf 'crossbow/crossbow-nightly-report/renv.lock'
 
       - name: Setup renv
         uses: r-lib/actions/setup-renv@v2
@@ -70,7 +70,7 @@ jobs:
           CROSSBOW_LOOKBACK_WINDOW: 120
         with:
           to: html
-          path: 'crossbow-nightly-report/crossbow-nightly-report.qmd'
+          path: 'crossbow/crossbow-nightly-report/crossbow-nightly-report.qmd'
 
       - name: Upload Rendered Dashboard
         if: github.event_name == 'pull_request'
@@ -78,11 +78,11 @@ jobs:
         with:
           name: dashboard
           path: |
-            crossbow-nightly-report/crossbow-nightly-report.html
-            all.yml
+            crossbow/crossbow-nightly-report/crossbow-nightly-report.html
+            crossbow/all.yml
       - name: Upload result
         if: github.event_name == 'push'
-        working-directory: crossbow-nightly-report
+        working-directory: crossbow
         shell: bash
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CROSSBOW_DOCS_AWS_ACCESS_KEY_ID }}
@@ -90,4 +90,4 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.CROSSBOW_DOCS_S3_BUCKET_REGION }}
           BUCKET: ${{ secrets.CROSSBOW_DOCS_S3_BUCKET }}
         run: |
-          aws s3 cp crossbow-nightly-report.html $BUCKET/index.html 
+          aws s3 cp crossbow-nightly-report/crossbow-nightly-report.html $BUCKET/index.html 
