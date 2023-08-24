@@ -39,6 +39,7 @@ library(tools)
 library(tibble)
 library(lubridate)
 library(yaml)
+library(arrow)
 
 
 crossbow_theme <- function(data, ...) {
@@ -157,16 +158,17 @@ cols <- c(
   "task_ci_type", "extra_params", "task_template_used", "arrow_repository_commit"
 )
 
-csv_paths <- list.files("../csv_reports", pattern = "*.csv", full.names = TRUE) %>%
-  set_names()
-
 ## Here is where we tidy the data until a 1 value 1 cell data structure
-nightly <- map_dfr(csv_paths, read_csv, .id = "file_path", col_type = cols(.default = col_character())) %>%
+nightly <- open_csv_dataset("../csv_reports") %>%
+  mutate(file_path = add_filename()) %>%
   mutate(build_links = gsub("^(.*?),.*", "\\1", build_links)) %>% ## get rid of multiple build links
   mutate(build_links = gsub("\\?.*", "", gsub("\\['|'\\]|'", "", build_links))) %>% ## gets rid of the extra formatting
-  mutate(nightly_name = file_path_sans_ext(basename(file_path))) %>%
-  mutate(build_type = toTitleCase(gsub("[0-9]|nightly|-", "", nightly_name))) %>%
-  mutate(nightly_date = as.Date(gsub("nightly-packaging-|nightly-release-|nightly-tests-", "", nightly_name)))
+  mutate(nightly_name = gsub("\\.csv$", "", gsub("^.*/", "", file_path))) %>%
+  mutate(build_type = str_to_title((gsub("[0-9]|nightly|-", "", nightly_name)))) %>%
+  mutate(nightly_date = ymd(gsub(".*-(\\d{4}-\\d{2}-\\d{2})-.*", "\\1", nightly_name))) %>%
+  collect() %>% 
+  filter(nightly_date >= Sys.Date() - days(lookback_window))
+
 
 most_recent_commit <- unique(nightly$arrow_commit[nightly$nightly_date == max(nightly$nightly_date)])
 ```
@@ -226,7 +228,7 @@ nightly_summary %>%
 
 ```{r ojs-hand-off}
 ojs_define(plot_end_date = max(pass_pct$nightly_date))# + days(7))
-ojs_define(plot_default_date = max(pass_pct$nightly_date) - days(lookback_window))
+ojs_define(plot_default_date = max(pass_pct$nightly_date) - days(14))
 ojs_define(ojs_pass_pct = pass_pct)
 ```
 
@@ -349,7 +351,6 @@ trendPlot(passPctDateSub)
 
 ```{r build_status}
 #| results: "asis"
-#| eval: false
 # this file can be generated with `archery crossbow check-config > all.yml`
 tasks <- yaml.load_file("../../all.yml")
 
@@ -414,7 +415,6 @@ for (.x in unique(build_table$build_type)) {
 
 ```{r error-logs}
 #| results: "asis"
-#| eval: false
 month_year_order <- rev(unique(format(sort(as.Date(nightly$nightly_date)), "%b %Y")))
 
 for (.x in month_year_order) {
