@@ -40,7 +40,6 @@ library(tibble)
 library(lubridate)
 library(yaml)
 library(arrow)
-library(here)
 
 crossbow_theme <- function(data, ...) {
   data %>%
@@ -52,7 +51,7 @@ crossbow_theme <- function(data, ...) {
 ```
 
 ```{r vars}
-lookback_window <- Sys.getenv("CROSSBOW_LOOKBACK_WINDOW", 120)
+lookback_window <- Sys.getenv("CROSSBOW_LOOKBACK_WINDOW", 200)
 ```
 
 ```{r helper}
@@ -158,7 +157,7 @@ cols <- c(
 )
 
 ## Here is where we tidy the data until a 1 value 1 cell data structure
-nightly <- open_csv_dataset(here("csv_reports")) %>%
+nightly <- open_csv_dataset("../csv_reports") %>%
   mutate(file_path = add_filename()) %>%
   mutate(build_links = gsub("^(.*?),.*", "\\1", build_links)) %>% ## get rid of multiple build links
   mutate(build_links = gsub("\\?.*", "", gsub("\\['|'\\]|'", "", build_links))) %>% ## gets rid of the extra formatting
@@ -176,7 +175,7 @@ most_recent_commit <- unique(nightly$arrow_commit[nightly$nightly_date == max(ni
 
 <a href='https://arrow.apache.org/'><img src='https://arrow.apache.org/img/arrow-logo_hex_black-txt_white-bg.png' align="right" height="150" /></a>
 
-This report builds in sync with the email notifications (`builds@arrow.apache.org`). `r pluralize('Most recent commit{?s}:  {arrow_commit_links(most_recent_commit)}')`
+This report builds in sync with the email notifications (`builds@arrow.apache.org`). `r pluralize('Most recent commit{?s} are:  {arrow_commit_links(most_recent_commit)}')`. The report examines data from the last `r lookback_window` days.
 
 
 # Summary 
@@ -353,7 +352,7 @@ trendPlot(passPctDateSub)
 ```{r build_status}
 #| results: "asis"
 # this file can be generated with `archery crossbow check-config > all.yml`
-tasks <- yaml.load_file(here("all.yml"))
+tasks <- yaml.load_file("../../all.yml")
 
 tests <- tasks$groups[["nightly-tests"]]
 packaging <- tasks$groups[["nightly-packaging"]]
@@ -426,7 +425,7 @@ for (.x in month_year_order) {
   cat(glue("\n## {.x}"), "\n")
 
   nightly_sub_tbl <- nightly_sub %>%
-    # filter(task_status == "failure") %>%
+    filter(task_status == "failure") %>%
     select(nightly_date, task_status, task_name, build_type, build_links, task_branch_name = crossbow_branch_url) %>%
     mutate(
       build_links = format_links(build_links),
