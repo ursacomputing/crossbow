@@ -40,7 +40,7 @@ library(tibble)
 library(lubridate)
 library(yaml)
 library(arrow)
-
+library(here)
 
 crossbow_theme <- function(data, ...) {
   data %>%
@@ -151,7 +151,6 @@ arrow_build_table <- function(nightly_data, type, task) {
 
 ```{r data load}
 #| messages: false
-#| cache: !expr is_dev()
 
 cols <- c(
   "task_name", "task_build_status", "build_links", "task_branch_name_on_the_crossbow_repo",
@@ -159,13 +158,15 @@ cols <- c(
 )
 
 ## Here is where we tidy the data until a 1 value 1 cell data structure
-nightly <- open_csv_dataset("../csv_reports") %>%
+nightly <- open_csv_dataset(here("csv_reports")) %>%
   mutate(file_path = add_filename()) %>%
   mutate(build_links = gsub("^(.*?),.*", "\\1", build_links)) %>% ## get rid of multiple build links
   mutate(build_links = gsub("\\?.*", "", gsub("\\['|'\\]|'", "", build_links))) %>% ## gets rid of the extra formatting
   mutate(nightly_name = gsub("\\.csv$", "", gsub("^.*/", "", file_path))) %>%
   mutate(build_type = str_to_title((gsub("[0-9]|nightly|-", "", nightly_name)))) %>%
   mutate(nightly_date = ymd(gsub(".*-(\\d{4}-\\d{2}-\\d{2})-.*", "\\1", nightly_name))) %>%
+  as_record_batch_reader() %>% 
+  filter(nightly_date >= ymd("2023-07-01")) %>% 
   collect() %>% 
   filter(nightly_date >= Sys.Date() - days(lookback_window))
 
@@ -352,7 +353,7 @@ trendPlot(passPctDateSub)
 ```{r build_status}
 #| results: "asis"
 # this file can be generated with `archery crossbow check-config > all.yml`
-tasks <- yaml.load_file("../../all.yml")
+tasks <- yaml.load_file(here("all.yml"))
 
 tests <- tasks$groups[["nightly-tests"]]
 packaging <- tasks$groups[["nightly-packaging"]]
@@ -415,6 +416,7 @@ for (.x in unique(build_table$build_type)) {
 
 ```{r error-logs}
 #| results: "asis"
+#| eval: false
 month_year_order <- rev(unique(format(sort(as.Date(nightly$nightly_date)), "%b %Y")))
 
 for (.x in month_year_order) {
@@ -424,8 +426,8 @@ for (.x in month_year_order) {
   cat(glue("\n## {.x}"), "\n")
 
   nightly_sub_tbl <- nightly_sub %>%
-    filter(task_status == "failure") %>%
-    select(nightly_date, task_name, build_type, build_links, task_branch_name = crossbow_branch_url) %>%
+    # filter(task_status == "failure") %>%
+    select(nightly_date, task_status, task_name, build_type, build_links, task_branch_name = crossbow_branch_url) %>%
     mutate(
       build_links = format_links(build_links),
       task_branch_name = format_links(task_branch_name)
@@ -435,6 +437,7 @@ for (.x in month_year_order) {
   names(nightly_sub_tbl) <- make_nice_names(nightly_sub_tbl)
 
   nightly_sub_tbl %>%
+    head(10) %>% 
     gt() %>%
     fmt_markdown(c("Build Links", "Task Branch Name")) %>%
     crossbow_theme() %>%
