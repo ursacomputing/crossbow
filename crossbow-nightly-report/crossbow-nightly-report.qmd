@@ -1,9 +1,24 @@
 ---
 title: "Crossbow Nightly Report"
-output: html_document
+execute: 
+  warning: false
+  echo: false
+format: 
+  html:
+    grid:
+        sidebar-width: 0px
+        body-width: 2000px
+        margin-width: 340px
+        gutter-width: 1.5rem
+    self-contained: true
+    page-layout: full
+    margin-left: 30px
+    link-external-newwindow: true
+    theme: cosmo
 ---
 
-```{r setup, include=FALSE}
+```{r setup}
+#| include: false
 knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
@@ -35,7 +50,15 @@ crossbow_theme <- function(data, ...) {
 }
 ```
 
+```{r vars}
+lookback_window <- Sys.getenv("CROSSBOW_LOOKBACK_WINDOW", 120)
+```
+
 ```{r helper}
+is_dev <- function() {
+  Sys.getenv("GITHUB_ACTIONS") != "true"
+}
+
 arrow_commit_links <- function(sha) {
   glue("<a href='https://github.com/apache/arrow/commit/{sha}' target='_blank'>{substring(sha, 1, 7)}</a>")
 }
@@ -126,18 +149,19 @@ arrow_build_table <- function(nightly_data, type, task) {
 
 
 ```{r data load}
-#| messages = FALSE
+#| messages: false
+#| cache: !expr is_dev()
 
 cols <- c(
   "task_name", "task_build_status", "build_links", "task_branch_name_on_the_crossbow_repo",
   "task_ci_type", "extra_params", "task_template_used", "arrow_repository_commit"
 )
 
-csv_paths <- list.files("csv_reports", pattern = "*.csv", full.names = TRUE) %>%
+csv_paths <- list.files("../csv_reports", pattern = "*.csv", full.names = TRUE) %>%
   set_names()
 
 ## Here is where we tidy the data until a 1 value 1 cell data structure
-nightly <- map_dfr(csv_paths, read_csv, .id = "file_path") %>%
+nightly <- map_dfr(csv_paths, read_csv, .id = "file_path", col_type = cols(.default = col_character())) %>%
   mutate(build_links = gsub("^(.*?),.*", "\\1", build_links)) %>% ## get rid of multiple build links
   mutate(build_links = gsub("\\?.*", "", gsub("\\['|'\\]|'", "", build_links))) %>% ## gets rid of the extra formatting
   mutate(nightly_name = file_path_sans_ext(basename(file_path))) %>%
@@ -200,34 +224,133 @@ nightly_summary %>%
 ```
 
 
-# Trend
-```{r table, echo=FALSE}
-pass_pct %>%
-  ggplot(aes(x = nightly_date, y = prop, group = build_type, colour = build_type)) +
-  geom_point(aes(shape = ifelse(prop == 1, "allpass", "fail"))) +
-  geom_smooth(method = "loess", formula = y ~ x, se = FALSE) +
-  geom_hline(yintercept = 1, colour = "grey", linetype = 3) +
-  labs(x = "Date", title = "Proportion of runs that are successful") +
-  guides(colour = "none", shape = "none") +
-  scale_colour_viridis_d() +
-  scale_shape_manual(values = c(17, 19)) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_x_date(date_breaks = "2 weeks", date_labels = "%b %d") +
-  theme_minimal() +
-  theme(
-    axis.title.y = element_blank(),
-    plot.title.position = "plot",
-    strip.text = element_text(size = 12),
-    legend.title = element_blank()
-  ) +
-  facet_wrap(~build_type, nrow = 3)
+```{r ojs-hand-off}
+ojs_define(plot_end_date = max(pass_pct$nightly_date))# + days(7))
+ojs_define(plot_default_date = max(pass_pct$nightly_date) - days(lookback_window))
+ojs_define(ojs_pass_pct = pass_pct)
 ```
 
-# Build Status  {.tabset}
+# Trend
 
-```{r results="asis"}
+```{ojs functions}
+trendPlot = function(data) {
+  // variables to use
+  const spec = ({
+    x: "nightly_date", 
+    y: "prop", 
+    stroke: "build_type", 
+    fy: "build_type"
+  })
+
+  const added_spec = Object.assign(
+    {},
+    spec,
+    {
+      tip: true,
+      symbol: "circle",
+      fill: "build_type",  
+      opacity: 0.7
+    }
+  )
+
+  return Plot.plot({
+    width: 1200,
+    height: 600,
+    nice: true,
+    color: {scheme: "viridis"},
+    facet: {
+      data: data,
+      y: "build_type",
+      marginRight: 90,
+      marginLeft: 10,
+      },
+      fy: {
+        inset: 15,
+        padding: 0.1,
+        label: ""
+      },
+    y: {
+      domain: [0, 100],
+      label: "Proportion successful (%)",
+      percent: true
+    },
+    x: {
+      type: "utc",
+      label: "",
+      tickFormat: "%b '%y",
+    },
+    style: {
+      fontSize: "16px"
+    },
+    marks: [
+      Plot.lineY(data, Plot.windowY(10, spec)),
+      Plot.frame(),
+      Plot.dot(data, added_spec),
+      Plot.axisX({ticks: d3.utcMonth.every(1), tickFormat: " %b", tickSize: 14, tickPadding: -10, textAnchor: "start"}),
+      Plot.axisX({ticks: d3.utcYear, tickFormat: "\n %Y", tickSize: 24, tickPadding: -20, textAnchor: "start"}),
+      Plot.gridX({ticks: d3.utcMonth})
+      ]
+    })
+}
+```
+
+```{ojs setup-ojs}
+// import newer observable
+Plot = await import("https://esm.sh/@observablehq/plot");
+import { aq, op } from '@uwdata/arquero';
+parser = d3.timeParse("%Y-%m-%d");
+import {slider as slide} from "@jashkenas/inputs"; // more configurable slider
+timeScale = d3.scaleTime()
+    .domain([initialPlotStartDate, plotEndDate])
+    .range([0, d3.timeDay.count(initialPlotStartDate, plotEndDate)]); 
+
+passPct = aq.from(transpose(ojs_pass_pct))
+  .derive({ nightly_date: aq.escape(d => parser(d.nightly_date)) })
+```
+
+```{ojs date-slider}
+minNightlyDate = passPct
+  .rollup({
+    min_nightly_date: d => op.min(d.nightly_date)
+  })
+  .array('min_nightly_date')
+
+// Slider for date
+initialPlotStartDate = new Date(minNightlyDate)
+plotEndDate = new Date(plot_end_date)
+plotDefaultDate = new Date(plot_default_date)
+
+// a slider that starts at the default date (value of CROSSBOW_LOOKBACK_WINDOW)
+viewof slider = slide({
+  min: 0, 
+  max: d3.timeDay.count(initialPlotStartDate, plotEndDate), 
+  format: d => md`${d3.timeFormat("%B %d, %Y")(timeScale.invert(d))}`,
+  title: "Plot minimum date", 
+  value: d3.timeDay.count(initialPlotStartDate, plotDefaultDate),
+  step: 2
+})
+
+// turn slide number back into a date
+date = timeScale.invert(slider)
+```
+
+```{ojs trend-plot}
+//| echo: false
+
+passPctDateSub = passPct
+  .filter(aq.escape(d => d.nightly_date > date))
+
+trendPlot(passPctDateSub)
+```
+
+# Build Status  
+
+::: {.panel-tabset}
+
+```{r build_status}
+#| results: "asis"
 # this file can be generated with `archery crossbow check-config > all.yml`
-tasks <- yaml.load_file("all.yml")
+tasks <- yaml.load_file("../all.yml")
 
 tests <- tasks$groups[["nightly-tests"]]
 packaging <- tasks$groups[["nightly-packaging"]]
@@ -280,12 +403,16 @@ for (.x in unique(build_table$build_type)) {
 }
 ```
 
+:::
 
 
 
-# Error Logs {.tabset}
+# Error Logs
 
-```{r error-logs, results='asis'}
+::: {.panel-tabset}
+
+```{r error-logs}
+#| results: "asis"
 month_year_order <- rev(unique(format(sort(as.Date(nightly$nightly_date)), "%b %Y")))
 
 for (.x in month_year_order) {
@@ -312,3 +439,5 @@ for (.x in month_year_order) {
     print()
 }
 ```
+
+:::
