@@ -53,7 +53,7 @@ crossbow_theme <- function(data, ...) {
 ```
 
 ```{r vars}
-lookback_window <- Sys.getenv("CROSSBOW_LOOKBACK_WINDOW", 200)
+lookback_window <- Sys.getenv("CROSSBOW_LOOKBACK_WINDOW", 120)
 ```
 
 ```{r helper}
@@ -188,6 +188,8 @@ cols <- c(
   "task_ci_type", "extra_params", "task_template_used", "arrow_repository_commit"
 )
 
+lookback_date <- Sys.Date() - days(lookback_window)
+
 ## Here is where we tidy the data until a 1 value 1 cell data structure
 nightly <- open_csv_dataset("../csv_reports") %>%
   mutate(file_path = add_filename()) %>%
@@ -197,9 +199,8 @@ nightly <- open_csv_dataset("../csv_reports") %>%
   mutate(build_type = str_to_title((gsub("[0-9]|nightly|-", "", nightly_name)))) %>%
   mutate(nightly_date = ymd(gsub(".*-(\\d{4}-\\d{2}-\\d{2})-.*", "\\1", nightly_name))) %>%
   as_record_batch_reader() %>% 
-  filter(nightly_date >= ymd("2023-07-01")) %>% 
-  collect() %>% 
-  filter(nightly_date >= Sys.Date() - days(lookback_window))
+  filter(nightly_date >= lookback_date) %>% 
+  collect() 
 
 
 most_recent_commit <- unique(nightly$arrow_commit[nightly$nightly_date == max(nightly$nightly_date)])
