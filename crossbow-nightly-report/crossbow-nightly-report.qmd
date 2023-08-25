@@ -14,7 +14,7 @@ format:
     page-layout: full
     margin-left: 30px
     link-external-newwindow: true
-    theme: cosmo
+    theme: [cosmo, crossbow.scss]
 ---
 
 ```{r setup}
@@ -40,6 +40,8 @@ library(tibble)
 library(lubridate)
 library(yaml)
 library(arrow)
+library(reactable)
+library(htmltools)
 
 crossbow_theme <- function(data, ...) {
   data %>%
@@ -57,6 +59,17 @@ lookback_window <- Sys.getenv("CROSSBOW_LOOKBACK_WINDOW", 200)
 ```{r helper}
 is_dev <- function() {
   Sys.getenv("GITHUB_ACTIONS") != "true"
+}
+
+search_drop_down_column <- function(values, name, custom = FALSE) {
+  htmltools::tags$select(
+    # Set to undefined to clear the filter
+    onchange = sprintf("Reactable.setFilter('name-select', '%s', event.target.value || undefined)", name),
+    # "All" has an empty value to clear the filter, and is the default option
+    htmltools::tags$option(value = "", "All"),
+    lapply(unique(values), htmltools::tags$option),
+    "aria-label" = sprintf("Filter %s", name)
+  )
 }
 
 arrow_commit_links <- function(sha) {
@@ -366,10 +379,8 @@ trendPlot(passPctDateSub)
 
 # Build Status  
 
-::: {.panel-tabset}
-
 ```{r build_status}
-#| results: "asis"
+#| results: asis
 # this file can be generated with `archery crossbow check-config > all.yml`
 tasks <- yaml.load_file("../all.yml")
 
@@ -385,55 +396,104 @@ map_params <- nightly %>%
   filter(task_name %in% active_jobs)
 
 build_table <- map2_df(map_params$build_type, map_params$task_name, ~ arrow_build_table(nightly, type = .x, task = .y))
-
-for (.x in unique(build_table$build_type)) {
-  cat(glue("\n## {.x}"), "\n")
-
-  bs_nightly_tbl <- build_table %>%
-    filter(build_type == .x) %>%
-    select(-build_type) %>%
-    select(where(~ sum(!is.na(.x)) > 0)) %>% ## remove any columns with no data
-    arrange(most_recent_status, desc(since_last_successful_build)) %>%
-    rowwise() %>%
-    mutate(
-      since_last_successful_build = ifelse(
-        is.na(since_last_successful_build), "-",
-        pluralize("{since_last_successful_build} day{?s}")
-      )
-    )
-
-  ## Need to sort columns at this level because of variable fail dates
-  ## TODO: find something a little less hacky
-  bs_nightly_tbl <- bs_nightly_tbl[, rev(sort(names(bs_nightly_tbl)))] %>%
-    relocate(any_of("most_recent_failure"), .after = last_col()) %>%
-    relocate(any_of(c("last_successful_build", "first_failure")), .after = last_successful_commit)
-
-  names(bs_nightly_tbl) <- make_nice_names(bs_nightly_tbl)
-
-  bs_nightly_tbl %>%
-    gt() %>%
-    cols_align("left") %>%
-    cols_width(`Task Name` ~ px(300)) %>%
-    fmt_markdown(matches("success|failure|days")) %>%
-    sub_missing(
-      everything(),
-      missing_text = ""
-    ) %>%
-    crossbow_theme() %>%
-    print()
-}
 ```
 
-:::
 
+```{r build_table}
+bs_nightly_tbl <- build_table %>%
+  select(where(~ sum(!is.na(.x)) > 0)) %>% ## remove any columns with no data
+  arrange(build_type, most_recent_status, desc(since_last_successful_build)) %>%
+  rowwise() %>%
+  mutate(
+    since_last_successful_build = ifelse(
+      is.na(since_last_successful_build), "-",
+      pluralize("{since_last_successful_build} day{?s}")
+    )
+  ) %>%
+  ungroup()
 
+## Need to sort columns at this level because of variable fail dates
+## TODO: find something a little less hacky
+bs_nightly_tbl_sorted <- bs_nightly_tbl[, rev(sort(names(bs_nightly_tbl)))] %>%
+  relocate(any_of("most_recent_failure"), .after = last_col()) %>%
+  relocate(any_of(c("last_successful_build", "first_failure")), .after = last_successful_commit) %>%
+  relocate(build_type, .before = task_name)
+
+## set a row number such all the failing builds are always displayed
+tbl_row_n <- bs_nightly_tbl_sorted %>%
+  filter(most_recent_status == "failing") %>%
+  count(build_type) %>%
+  filter(n == max(n)) %>%
+  pull(n)
+
+names(bs_nightly_tbl_sorted) <- make_nice_names(bs_nightly_tbl_sorted)
+
+bs_nightly_tbl_sorted %>%
+  reactable(
+    filterable = TRUE,
+    highlight = TRUE,
+    wrap = TRUE,
+    # style = list(fontSize = "0.6rem"),
+    defaultPageSize = tbl_row_n,
+    rowStyle = function(index) {
+      if (bs_nightly_tbl_sorted[index, "Most Recent Status"] == "failing") {
+        list(background = "#ffe4e4")
+      } else {
+        list(background = "#d1e8ff")
+      }
+    },
+    defaultColDef = reactable::colDef(
+      html = TRUE, 
+      class = "bw_table_cells",
+      headerClass = "bw_table_header",
+      headerVAlign = "bottom",
+      width = 50
+      ),
+    columns = list(
+      `Build Type` = reactable::colDef(
+        width = 80,
+        filterInput = function(values, name) {
+          search_drop_down_column(values, name)
+        }
+      ),
+      `Task Name` = reactable::colDef(
+        width = 80
+      ),
+      `Since Last Successful Build` = reactable::colDef(
+        width = 100,
+        filterInput = function(values, name) {
+          search_drop_down_column(values, name)
+        }
+      ),
+      `Most Recent Status` = reactable::colDef(
+        width = 70,
+        filterInput = function(values, name) {
+          search_drop_down_column(values, name)
+        }
+      ),
+      `Last Successful Commit` = reactable::colDef(
+        width = 80
+      ),
+      `Last Successful Build` = reactable::colDef(
+        width = 80
+      ),
+      `First Failure` = reactable::colDef(
+        width = 60
+      ),
+      `Most Recent Failure` = reactable::colDef(
+        width = 60
+      )
+    ),
+    elementId = "name-select"
+  )
+```
 
 # Error Logs
 
 ::: {.panel-tabset}
 
 ```{r error-logs}
-#| results: "asis"
+#| results: asis
 month_year_order <- rev(unique(format(sort(as.Date(nightly$nightly_date)), "%b %Y")))
 
 for (.x in month_year_order) {
