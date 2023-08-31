@@ -2,6 +2,7 @@
 title: "Arrow Release Benchmark Report"
 execute: 
   warning: false
+  echo: false
 format: 
   html:
     grid:
@@ -27,7 +28,7 @@ Sys.unsetenv("CONBENCH_PASSWORD")
 
 baseline_git_commit <- Sys.getenv("BASELINE_GIT_COMMIT") 
 contender_git_commit <-  Sys.getenv("CONTENDER_GIT_COMMIT")
-hardware_name <- "ursa-i9-9960x"
+hardware_name <- c("ursa-i9-9960x", "ursa-thinkcentre-m75q")
 
 library(dplyr)
 library(ggplot2)
@@ -48,7 +49,6 @@ library(ggiraph)
 font_add_google('Roboto Mono', 'roboto')
 showtext_auto()
 
-
 fig_width <- 16
 fig_height <- 7
 
@@ -58,7 +58,7 @@ theme_set(theme_minimal(base_size = 24, base_family = "roboto") %+replace%
     plot.title.position = "plot",
     strip.text.y = element_text(angle = -90),
     strip.text = element_text(size = 18),
-    panel.border = element_rect(colour = "grey80", fill = NA, size = 1),
+    panel.border = element_rect(colour = "grey80", fill = NA, linewidth = 1),
     legend.title = element_blank(),
     legend.position = "top"
   ))
@@ -78,6 +78,7 @@ source("R/functions.R")
 ```{r compute-runs}
 #| include: false
 #| results: 'asis'
+#| cache: !expr '!is_gha()'
 
 run_comp <- find_runs(baseline_git_commit, contender_git_commit, hardware_name)
 
@@ -113,6 +114,7 @@ hardware_summary %>%
     commit.timestamp = ymd_hms(commit.timestamp)
     ) %>% 
   select(run_type, commit.sha, commit.timestamp, hardware.cpu_model_name) %>% 
+  arrange(hardware.cpu_model_name) %>% 
   gt() %>% 
   fmt_markdown(c("commit.sha", "run_type")) %>% 
   gt::cols_label(
@@ -127,7 +129,7 @@ hardware_summary %>%
 ```{r message-same-day-commit}
 #| results: 'asis'
 
-if (Sys.Date() %in% as.Date(hardware_summary$commit.timestamp)) {
+if (Sys.Date() %in% unique(as.Date(hardware_summary$commit.timestamp))) {
   ## inform early and informatively with when not using correct hardware
   cat("::: {.callout-warning}\n")
   cat("You are trying to examine commits that were made today. It is possible that not all benchmarks have been completed yet and plots below may show unexpected results.\n")
@@ -150,8 +152,9 @@ names(change_cols) <- c(glue("{contender_git_commit_short} (contender) faster"),
 ```
 
 
-```{r compute-process-data}
+```{r compute-process-macro-bm-data}
 #| results: 'asis'
+#| cache: !expr '!is_gha()'
 
 # Compare the baseline to the contender for 
 # macrobenchmarks
@@ -160,7 +163,7 @@ macro_bm_df <- run_comp %>%
   compare_baseline_to_contender() %>%
   filter(baseline$language %in% c("Python", "R"))
 
-conbench_proced <- conbench_df %>%
+macro_bm_proced <- macro_bm_df %>%
   # csv-read had very different kinds of runs
   filter(baseline$benchmark_name != "csv-read") %>%
   # Remove the "TPCH-" prefix and any 0 at the start of the number
