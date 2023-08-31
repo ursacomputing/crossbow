@@ -306,6 +306,54 @@ micro_bm_proced <- micro_bm_df %>%
 ```
 
 
+```{r ojs-defn}
+ojs_define(ojs_micro_bm_proced = micro_bm_proced)
+```
+
+```{ojs setup-micro-bm}
+Plot = await import("https://esm.sh/@observablehq/plot");
+import { aq, op } from '@uwdata/arquero';
+boxWidth = 900
+microBmProced = aq.from(transpose(ojs_micro_bm_proced))
+
+// Choose the language
+allLanguageValues = microBmProced.dedupe('language').array('language')
+
+viewof languageSelected = Inputs.select(allLanguageValues, {
+    label: md`**Language**`,
+    value: [allLanguageValues[0]],
+    width: boxWidth
+})
+
+// Choose the suite
+allSuiteValues = microBmProced
+    .filter(aq.escape(d => op.equal(d.language, languageSelected)))
+    .dedupe('suite').array('suite')
+
+viewof suiteSelected = Inputs.select(allSuiteValues, {
+    label: md`**Suite**`,
+    value: [allSuiteValues[0]],
+    width: boxWidth
+})
+
+// Choose the benchmark
+allNameValues = microBmProced
+    .filter(aq.escape(d => op.equal(d.language, languageSelected)))
+    .filter(aq.escape(d => op.equal(d.suite, suiteSelected)))
+    .dedupe('name').array('name')
+
+viewof nameSelected = Inputs.select(allNameValues, {
+    label: md`**Name**`,
+    value: [allNameValues[0]],
+    width: boxWidth
+})
+
+microBmProced
+    .filter(aq.escape(d => op.equal(d.language, languageSelected)))
+    .filter(aq.escape(d => op.equal(d.suite, suiteSelected)))
+    .filter(aq.escape(d => op.equal(d.name, nameSelected))).view()
+```
+
 ```{css, echo=FALSE}
 div.main-container {
   max-width: 2000px;
