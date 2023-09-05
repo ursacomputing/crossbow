@@ -306,9 +306,34 @@ micro_bm_proced <- micro_bm_df %>%
   select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated, change, difference, pn_lab)
 ```
 
+There are currently `r nrow(micro_bm_proced)` microbenchmarks in the Arrow benchmarks. Because of this volume, formal pairwise comparisons between the baseline and contender can further be broken down below by language, suite, and benchmark name. Additionally regressions and improvements can be filtered to show only those that are marked by conbench.
+
+```{r}
+micro_bm_proced %>% 
+  count(language, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated) %>% 
+  mutate(col_var = case_when(
+    analysis_pairwise_regression_indicated == TRUE ~ "Regressions",
+    analysis_pairwise_improvement_indicated == TRUE ~ "Improvements",
+    TRUE ~ "Neither"
+  )) %>%
+  select(-all_of(starts_with("analysis"))) %>% 
+  pivot_wider(names_from = col_var, values_from = n) %>% 
+  rowwise() %>%
+  mutate(Total = sum(c_across(c(Neither, Improvements, Regressions)))) %>%
+  select(-Neither) %>%
+  gt() %>% 
+  cols_label(language = "Language") %>% 
+  tab_spanner(
+    label = "Number of microbenchmarks",
+    columns = c(Improvements, Regressions, Total)
+  ) %>%
+  opt_table_font(font = google_font("Roboto Mono"))
+```
 
 ```{r ojs-defn}
 ojs_define(ojs_micro_bm_proced = micro_bm_proced)
+ojs_define(ojs_change_cols = rev(change_cols))
+ojs_define(ojs_pn_lab = unique(micro_bm_proced$pn_lab))
 ```
 
 ```{ojs setup-micro-bm}
@@ -388,7 +413,42 @@ microBmProcedChanges.view()
 ```
 
 ```{ojs plot-micro-bm}
-
+Plot.plot({
+  width: 1000,
+  height: 600,
+  grid: true,
+  label: null,
+  x: {
+    label: "% change",
+    labelAnchor: "center",
+    percent: true
+  },
+  style: {
+    fontSize: "14px",
+    fontFamily: "Roboto Mono"
+    },
+  color: {
+    range: ojs_change_cols,
+    domain: ojs_pn_lab,
+    type: "categorical",
+    legend: true
+  },
+  marks: [
+    Plot.barX(microBmProcedChangesFiltered, {
+      y: "params", 
+      x: "change", 
+      color: "black",
+      fill: "pn_lab", 
+      fillOpacity: 0.75,
+      sort: {y: "x"},
+      channels: {difference: "difference", params: "params"}, 
+      tip: true
+      }),
+    Plot.gridX({stroke: "white", strokeOpacity: 0.5}),
+    Plot.axisY({x: 0}),
+    Plot.ruleX([0])
+  ]
+})
 ```
 
 
