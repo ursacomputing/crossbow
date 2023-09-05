@@ -43,6 +43,7 @@ library(gt)
 library(forcats)
 library(showtext)
 library(ggiraph)
+library(janitor)
 
 ## add fonts for ggplot2
 ## TODO: add for tooltip font
@@ -283,9 +284,7 @@ girafe(
 ```
 
 
-## Microbenchmarks
-
-Float regressions to the top
+# Microbenchmarks
 
 ```{r compute-process-micro-bm-data}
 #| cache: !expr '!is_gha()'
@@ -302,7 +301,9 @@ micro_bm_proced <- micro_bm_df %>%
   group_by(baseline$language, baseline$benchmark_name) %>%
   group_modify(~ tidy_compare(.x, .y)) %>% 
   ungroup() %>% 
-  filter(!is.na(name))
+  filter(!is.na(name)) %>% 
+  clean_names() %>% 
+  select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated, change, difference, pn_lab)
 ```
 
 
@@ -315,9 +316,39 @@ Plot = await import("https://esm.sh/@observablehq/plot");
 import { aq, op } from '@uwdata/arquero';
 boxWidth = 900
 microBmProced = aq.from(transpose(ojs_micro_bm_proced))
+```
+
+```{ojs filter-micro-bm}
+// Top level: are there regressions/improvements?
+viewof changes = Inputs.checkbox(["Regressions", "Improvements"], {
+  label: md`**Benchmark Status**`,
+  value: "Regressions"
+  })
+
+// Choose the state of the benchmark
+microBmProcedChanges = {
+  let microBmProcedParams;
+  let hasRegressions = changes.includes("Regressions");
+  let hasImprovements = changes.includes("Improvements");
+  microBmProcedParams = microBmProced
+      .params({hr: hasRegressions, hi: hasImprovements})
+  if (hasRegressions && hasImprovements) {
+    microBmProcedParams = microBmProced
+      .filter((d, $) => d.analysis_pairwise_regression_indicated==$.hr || d.analysis_pairwise_improvement_indicated==$.hi);
+  } else if (hasImprovements) {
+    microBmProcedParams = microBmProced
+      .filter((d, $) => d.analysis_pairwise_improvement_indicated==$.hi)
+  } else if (hasRegressions) {
+    microBmProcedParams = microBmProced
+      .filter((d, $) => d.analysis_pairwise_regression_indicated==$.hr);
+  } else {
+    microBmProcedParams = microBmProced;
+  }
+  return microBmProcedParams;
+}
 
 // Choose the language
-allLanguageValues = microBmProced.dedupe('language').array('language')
+allLanguageValues = microBmProcedChanges.dedupe('language').array('language')
 
 viewof languageSelected = Inputs.select(allLanguageValues, {
     label: md`**Language**`,
@@ -326,7 +357,7 @@ viewof languageSelected = Inputs.select(allLanguageValues, {
 })
 
 // Choose the suite
-allSuiteValues = microBmProced
+allSuiteValues = microBmProcedChanges
     .filter(aq.escape(d => op.equal(d.language, languageSelected)))
     .dedupe('suite').array('suite')
 
@@ -337,7 +368,7 @@ viewof suiteSelected = Inputs.select(allSuiteValues, {
 })
 
 // Choose the benchmark
-allNameValues = microBmProced
+allNameValues = microBmProcedChanges
     .filter(aq.escape(d => op.equal(d.language, languageSelected)))
     .filter(aq.escape(d => op.equal(d.suite, suiteSelected)))
     .dedupe('name').array('name')
@@ -348,11 +379,18 @@ viewof nameSelected = Inputs.select(allNameValues, {
     width: boxWidth
 })
 
-microBmProced
+microBmProcedChangesFiltered = microBmProcedChanges
     .filter(aq.escape(d => op.equal(d.language, languageSelected)))
     .filter(aq.escape(d => op.equal(d.suite, suiteSelected)))
-    .filter(aq.escape(d => op.equal(d.name, nameSelected))).view()
+    .filter(aq.escape(d => op.equal(d.name, nameSelected)))
+
+microBmProcedChanges.view()
 ```
+
+```{ojs plot-micro-bm}
+
+```
+
 
 ```{css, echo=FALSE}
 div.main-container {
