@@ -143,3 +143,13 @@ tidy_compare <- function(.x, .y) {
       benchmark_name = .y$`baseline$benchmark_name`
     )
 }
+
+
+generate_compare_url <- function(x) {
+  baseline_id <- unique(x$baseline$run_id)
+  baseline_id <- baseline_id[!is.na(baseline_id)]
+  contender_id <- unique(x$contender$run_id)
+  contender_id <- contender_id[!is.na(contender_id)]
+
+  glue("https://conbench.ursa.dev/compare/runs/{contender_id}...{baseline_id}")
+}
