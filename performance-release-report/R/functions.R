@@ -153,3 +153,30 @@ generate_compare_url <- function(x) {
 
   glue("https://conbench.ursa.dev/compare/runs/{contender_id}...{baseline_id}")
 }
+
+
+top_zscore_table <- function(.data, top_n = 20, direction = c("positive", "negative")) {
+  direction <- match.arg(direction)
+
+  if (direction == "positive") {
+    .data <- .data %>%
+      arrange(desc(analysis_lookback_z_score_z_score))
+  } else {
+    .data <- .data %>%
+      arrange(analysis_lookback_z_score_z_score)
+  }
+
+  .data %>%
+    head(top_n) %>%
+    select(language, name, suite, params, analysis_lookback_z_score_z_score) %>%
+    gt() %>%
+    cols_label(
+      language = "Language",
+      name = "Benchmark",
+      suite = "Suite",
+      params = "Params",
+      analysis_lookback_z_score_z_score = "z-score"
+    ) %>%
+    opt_table_font(font = google_font("Roboto Mono")) %>%
+    tab_options(table.font.size = "10px")
+}

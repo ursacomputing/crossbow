@@ -292,8 +292,6 @@ girafe(
 
 # Microbenchmarks
 
-
-
 ```{r compute-process-micro-bm-data}
 #| cache: !expr '!is_gha()'
 
@@ -311,12 +309,10 @@ micro_bm_proced <- micro_bm_df %>%
   ungroup() %>% 
   filter(!is.na(name)) %>% 
   clean_names() %>% 
-  select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated, change, difference, pn_lab)
+  select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated, change, difference, pn_lab, analysis_lookback_z_score_z_score)
 ```
 
-- [Conbench compare url](`r generate_compare_url(micro_bm_df)`)
-
-There are currently `r nrow(micro_bm_proced)` microbenchmarks in the Arrow benchmarks. Because of this volume, formal pairwise comparisons between the baseline and contender can further be broken down below by language, suite, and benchmark name. Additionally regressions and improvements can be filtered to show only those that are marked by conbench.
+There are currently `r nrow(micro_bm_proced)` microbenchmarks in the Arrow benchmarks. The following comparisons are also available to be viewed in the [conbench ui](`r generate_compare_url(micro_bm_df)`). 
 
 ```{r}
 micro_bm_proced %>% 
@@ -340,6 +336,50 @@ micro_bm_proced %>%
   opt_table_font(font = google_font("Roboto Mono"))
 ```
 
+Because of the large number of benchmarks, the top 20 benchmark results that deviate most from the baseline in both the positive and negative directions are presented below. 
+
+::: {.callout-important collapse="true"}
+
+## Top 20 negative z-scores
+
+```{r}
+top_zscore_table(micro_bm_proced, direction = "negative")
+```
+
+
+:::
+
+::: {.callout-note collapse="true"}
+
+## Top 20 positive z-scores
+
+```{r}
+top_zscore_table(micro_bm_proced, direction = "positive")
+```
+
+:::
+
+## z-score distribution
+
+Plotting the distribution of zscores for all benchmark results will help identify any systematic differences between the baseline and contender. 
+ 
+
+```{ojs}
+Plot.plot({
+  y: {grid: true},
+  x: {
+    label: "z-score"
+  },
+  color: {legend: false},
+  width: 1000,
+  height: 400,
+  marks: [
+    Plot.rectY(microBmProced, Plot.binX({y: "count"}, {x: "analysis_lookback_z_score_z_score", fill: "suite", tip: true})),
+    Plot.ruleY([0])
+  ]
+})
+```
+
 ```{r ojs-defn}
 ojs_define(ojs_micro_bm_proced = micro_bm_proced)
 ojs_define(ojs_change_cols = rev(change_cols))
@@ -352,6 +392,11 @@ import { aq, op } from '@uwdata/arquero';
 boxWidth = 900
 microBmProced = aq.from(transpose(ojs_micro_bm_proced))
 ```
+
+## Microbenchmark explorer
+
+Formal pairwise comparisons between the baseline and contender can further be broken down below by language, suite, and benchmark name. Additionally regressions and improvements can be filtered to show only those that are marked by conbench.
+
 
 ```{ojs filter-micro-bm}
 // Top level: are there regressions/improvements?
@@ -421,15 +466,33 @@ microBmProcedChangesFiltered = microBmProcedChanges
 ```
 
 ```{ojs plot-micro-bm}
+// long labels need special handlings
+margins = {
+  let hasRegressions = changes.includes("Regressions");
+  let hasImprovements = changes.includes("Improvements");
+  let margin = [300, 300];
+  if (hasRegressions && hasImprovements) {
+    margin = margin;
+  } else if (hasImprovements) {
+    margin = [0, 600];
+  } else if (hasRegressions) {
+    margin = [600, 0];
+  } 
+  return margin;
+}
+
 Plot.plot({
-  width: 1000,
-  height: 600,
-  grid: true,
+  width: 1200,
+  height: (microBmProcedChangesFiltered.numRows()*30)+100, //adjust height of plot based on number of rows
+  marginRight: margins[0],
+  marginLeft: margins[1],
   label: null,
   x: {
+    axis: "top",
     label: "% change",
     labelAnchor: "center",
-    percent: true
+    percent: true,
+    labelOffset: 30
   },
   style: {
     fontSize: "14px",
@@ -453,8 +516,17 @@ Plot.plot({
       tip: true
       }),
     Plot.gridX({stroke: "white", strokeOpacity: 0.5}),
-    Plot.axisY({x: 0}),
-    Plot.ruleX([0])
+    Plot.ruleX([0]),
+    d3
+      .groups(microBmProcedChangesFiltered, (d) => d.change > 0)
+      .map(([posneg, dat]) => [
+        Plot.axisY({
+          x: 0,
+          ticks: dat.map((d) => d.params),
+          tickSize: 0,
+          anchor: posneg ? "left" : "right"
+        }),
+      ])
   ]
 })
 ```
