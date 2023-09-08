@@ -78,7 +78,6 @@ plot_comparison <- function(plot_df, alpha = 0.7) {
   }
 
   title <- glue::glue("{unique(plot_df$language)}: {unique(plot_df$benchmark_name)}")
-
   p <- plot_df %>%
     mutate(change_lab = change * 1.05) %>%
     ggplot() +
@@ -86,8 +85,10 @@ plot_comparison <- function(plot_df, alpha = 0.7) {
     geom_col_interactive(
       aes(
         tooltip = glue(
-          "Percent change: {round(change, 2)}%\n",
+          "Baseline raw value: {baseline.single_value_summary}{unit}\n",
+          "Contender raw value: {contender.single_value_summary}{unit}\n",
           "Difference: {difference}\n",
+          "Percent change: {round(change, 2)}%\n",
           "Dataset: {dataset}"
         )
       ),
@@ -142,7 +143,7 @@ tidy_compare <- function(.x, .y) {
     select(-any_of(c("baseline_tags.dataset", "baseline_tags.language"))) %>%
     rename_with(~ gsub("baseline_tags.", "", .)) %>%
     mutate(change = analysis.pairwise.percent_change) %>%
-    mutate(difference = paste0(round((baseline.single_value_summary - contender.single_value_summary) * 1000, 4), "", unit)) %>%
+    mutate(difference = paste0(round((baseline.single_value_summary - contender.single_value_summary), 4), "", unit)) %>%
     mutate(
       pn_lab = case_when(
         analysis.pairwise.percent_change == 0 ~ "no change",
