@@ -78,7 +78,7 @@ source("R/functions.R")
 ```
 
 
-```{r compute-runs}
+```{r compute-conbench-requests}
 #| include: false
 #| results: 'asis'
 #| cache: !expr '!is_gha()'
@@ -89,14 +89,27 @@ if (length(run_comp) == 0) {
   knit_exit("No runs found for the given commits. Please check that the commits are correct and that the benchmark runs have completed.")
 }
 
-hardware_summary <- run_comp %>%
-  mutate(commit.timestamp = ymd_hms(commit.timestamp)) %>%
-  distinct(run_type, links.self, commit.sha, commit.timestamp, commit.url, hardware.cpu_model_name)
+# Compare the baseline to the contender for 
+# macrobenchmarks
+macro_bm_df <- run_comp %>%
+  filter(hardware.name == "ursa-i9-9960x") %>%
+  compare_baseline_to_contender() %>%
+  filter(baseline$language %in% c("Python", "R")) ## still need to add in the JS benchmarks
+
+# microbenchmarks
+micro_bm_df <- run_comp %>%
+  filter(hardware.name == "ursa-thinkcentre-m75q") %>%
+  compare_baseline_to_contender()
 ```
 
 
 ```{r message-missing-hardware}
 #| results: 'asis'
+
+## extract hardware information
+hardware_summary <- run_comp %>%
+  mutate(commit.timestamp = ymd_hms(commit.timestamp)) %>%
+  distinct(run_type, links.self, commit.sha, commit.timestamp, commit.url, hardware.cpu_model_name, id)
 
 if (nrow(hardware_summary) != 2L*length(hardware_name)) {
   ## fail early and informatively with when not using correct hardware
@@ -110,21 +123,34 @@ if (nrow(hardware_summary) != 2L*length(hardware_name)) {
 
 # Benchmark Run Summary
 ```{r table-run-summary}
-hardware_summary %>% 
+
+## get additional information about the benchmarks
+benchmark_summary <- map_df(list(macro_bm_df, micro_bm_df), get_language_summary_from_comparison)
+
+
+run_summary <- hardware_summary %>%
+  left_join( ## join on run_id
+    benchmark_summary,
+    by = c("id" = "run_id")
+  ) %>%
   mutate(
     commit.sha = glue("[{substr(commit.sha, 1, 7)}]({commit.url})"),
     run_type = glue("[{run_type}]({links.self})"),
     commit.timestamp = ymd_hms(commit.timestamp)
-    ) %>% 
-  select(run_type, commit.sha, commit.timestamp, hardware.cpu_model_name) %>% 
-  arrange(hardware.cpu_model_name) %>% 
+  ) %>%
+  select(run_type, commit.sha, commit.timestamp, hardware.cpu_model_name, languages, n_benchmarks) %>%
+  arrange(hardware.cpu_model_name)
+
+run_summary %>% 
   gt() %>% 
   fmt_markdown(c("commit.sha", "run_type")) %>% 
   gt::cols_label(
     run_type = "Run Type",
     commit.sha = "Commit SHA",
     commit.timestamp = "Time of Commit",
-    hardware.cpu_model_name = "Hardware"
+    hardware.cpu_model_name = "Hardware",
+    languages = "Languages",
+    n_benchmarks = "Number of Benchmarks"
   ) %>% 
   opt_table_font(font = google_font("Roboto Mono"))
 ```
@@ -154,14 +180,6 @@ names(change_cols) <- c(glue("{contender_git_commit_short} (contender) faster"),
 
 ```{r compute-process-macro-bm-data}
 #| results: 'asis'
-#| cache: !expr '!is_gha()'
-
-# Compare the baseline to the contender for 
-# macrobenchmarks
-macro_bm_df <- run_comp %>%
-  filter(hardware.name == "ursa-i9-9960x") %>%
-  compare_baseline_to_contender() %>%
-  filter(baseline$language %in% c("Python", "R"))
 
 macro_bm_proced <- macro_bm_df %>%
   # csv-read had very different kinds of runs
@@ -293,11 +311,7 @@ girafe(
 # Microbenchmarks
 
 ```{r compute-process-micro-bm-data}
-#| cache: !expr '!is_gha()'
 
-micro_bm_df <- run_comp %>%
-  filter(hardware.name == "ursa-thinkcentre-m75q") %>%
-  compare_baseline_to_contender()
 
 ## unlike the plots above, this is added as single rectangular
 ## data.frame because that data structure is easier to work with
