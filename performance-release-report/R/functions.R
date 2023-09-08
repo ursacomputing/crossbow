@@ -85,8 +85,8 @@ plot_comparison <- function(plot_df, alpha = 0.7) {
     geom_col_interactive(
       aes(
         tooltip = glue(
-          "Baseline raw value: {baseline.single_value_summary}{unit}\n",
-          "Contender raw value: {contender.single_value_summary}{unit}\n",
+          "Baseline result: {baseline.single_value_summary}{unit}\n",
+          "Contender result: {contender.single_value_summary}{unit}\n",
           "Difference: {difference}\n",
           "Percent change: {round(change, 2)}%\n",
           "Dataset: {dataset}"
@@ -169,10 +169,10 @@ generate_compare_url <- function(x) {
 }
 
 
-top_zscore_table <- function(.data, top_n = 20, direction = c("positive", "negative")) {
+top_zscore_table <- function(.data, top_n = 20, direction = c("improvement", "regression")) {
   direction <- match.arg(direction)
 
-  if (direction == "positive") {
+  if (direction == "improvement") {
     .data <- .data %>%
       arrange(desc(analysis_lookback_z_score_z_score))
   } else {
@@ -182,13 +182,17 @@ top_zscore_table <- function(.data, top_n = 20, direction = c("positive", "negat
 
   .data %>%
     head(top_n) %>%
-    select(language, name, suite, params, analysis_lookback_z_score_z_score) %>%
-    gt() %>%
+    select(language, suite, name, params, analysis_lookback_z_score_z_score, analysis_lookback_z_score_z_threshold, baseline_single_value_summary, contender_single_value_summary) %>%
+    arrange(language, suite, name, params) %>% 
+    gt(rowname_col = "language", groupname_col = "suite") %>%
     cols_label(
       language = "Language",
       name = "Benchmark",
       suite = "Suite",
       params = "Params",
+      baseline_single_value_summary = "Baseline result",
+      contender_single_value_summary = "Contender result",
+      analysis_lookback_z_score_z_threshold = "z-score threshold",
       analysis_lookback_z_score_z_score = "z-score"
     ) %>%
     opt_table_font(font = google_font("Roboto Mono")) %>%
