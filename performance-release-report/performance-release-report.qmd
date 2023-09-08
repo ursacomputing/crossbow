@@ -323,7 +323,7 @@ micro_bm_proced <- micro_bm_df %>%
   ungroup() %>% 
   filter(!is.na(name)) %>% 
   clean_names() %>% 
-  select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated, change, difference, pn_lab, analysis_lookback_z_score_z_score, analysis_lookback_z_score_z_threshold, baseline_single_value_summary, contender_single_value_summary)
+  select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated, change, difference, pn_lab, analysis_lookback_z_score_z_score, analysis_lookback_z_score_z_threshold, baseline_single_value_summary, contender_single_value_summary, cb_url)
 ```
 
 There are currently `r nrow(micro_bm_proced)` microbenchmarks in the Arrow benchmarks. The following comparisons are also available to be viewed in the [Conbench UI](`r generate_compare_url(micro_bm_df)`). 
@@ -376,7 +376,7 @@ top_zscore_table(micro_bm_proced, direction = "improvement")
 
 ## z-score distribution
 
-Plotting the distribution of zscores for all benchmark results will help identify any systematic differences between the baseline and contender. 
+Plotting the distribution of zscores for all microbenchmark results will help identify any systematic differences between the baseline and contender. The shape of the distribution of z-scores provides a sense of the overall performance of the contender relative to the baseline. Narrow distirbutions centered around 0 indicate that the contender is performing similarly to the baseline. Wider distributions indicate that the contender is performing differently than the baseline with left skewing indicating regressions and right skewing indicating improvements.
  
 
 ```{ojs}
@@ -389,7 +389,7 @@ Plot.plot({
   width: 1000,
   height: 400,
   marks: [
-    Plot.rectY(microBmProced, Plot.binX({y: "count"}, {x: "analysis_lookback_z_score_z_score", fill: "suite", tip: true})),
+    Plot.rectY(microBmProced, Plot.binX({y: "count"}, {x: "analysis_lookback_z_score_z_score", fill: "grey", tip: true})),
     Plot.ruleY([0])
   ]
 })
@@ -410,7 +410,7 @@ microBmProced = aq.from(transpose(ojs_micro_bm_proced))
 
 ## Microbenchmark explorer
 
-Formal pairwise comparisons between the baseline and contender can further be broken down below by language, suite, and benchmark name. Additionally regressions and improvements can be filtered to show only those that are marked by conbench.
+Formal pairwise comparisons between the baseline and contender can further be broken down below by language, suite, and benchmark name. Additionally regressions and improvements can be filtered to show only those detected as a threshold level of `r threshold` z-scores.
 
 
 ```{ojs filter-micro-bm}
@@ -528,6 +528,7 @@ Plot.plot({
       fillOpacity: 0.75,
       sort: {y: "x"},
       channels: {difference: "difference", params: "params"}, 
+      href: "cb_url",
       tip: true
       }),
     Plot.gridX({stroke: "white", strokeOpacity: 0.5}),

@@ -144,6 +144,7 @@ tidy_compare <- function(.x, .y) {
     rename_with(~ gsub("baseline_tags.", "", .)) %>%
     mutate(change = analysis.pairwise.percent_change) %>%
     mutate(difference = paste0(round((baseline.single_value_summary - contender.single_value_summary), 4), "", unit)) %>%
+    mutate(cb_url = glue('https://conbench.ursa.dev/benchmark-results/{baseline.benchmark_result_id}/')) %>% 
     mutate(
       pn_lab = case_when(
         analysis.pairwise.percent_change == 0 ~ "no change",
@@ -182,9 +183,11 @@ top_zscore_table <- function(.data, top_n = 20, direction = c("improvement", "re
 
   .data %>%
     head(top_n) %>%
+    mutate(name = glue("[{name}]({cb_url})")) %>%
     select(language, suite, name, params, analysis_lookback_z_score_z_score, analysis_lookback_z_score_z_threshold, baseline_single_value_summary, contender_single_value_summary) %>%
     arrange(language, suite, name, params) %>% 
     gt(rowname_col = "language", groupname_col = "suite") %>%
+    fmt_markdown(columns = "name") %>% 
     cols_label(
       language = "Language",
       name = "Benchmark",
