@@ -428,14 +428,13 @@ microBmProced = aq.from(transpose(ojs_micro_bm_proced))
 
 ## Microbenchmark explorer {#micro-bm-explorer}
 
-Formal pairwise comparisons between the baseline and contender can further be broken down below by language, suite, and benchmark name. Additionally regressions and improvements can be filtered to show only those detected as a threshold level of `r threshold` z-scores.
-
+This microbenchmarks explorer allows you to filter the microbenchmark results by language, suite, and benchmark name and toggle regressions and improvements based on a threshold level of `r threshold` z-scores. Languages, suite and benchmark name default to showing all results for that category. The display can be further filtered by selecting a specific language, suite, or benchmark name. Each bar can be clicked to open the Conbench UI page for that benchmark providing additional history and metadata.
 
 ```{ojs filter-micro-bm}
 // Top level: are there regressions/improvements?
 viewof changes = Inputs.checkbox(["Regressions", "Improvements"], {
   label: md`**Benchmark Status**`,
-  value: "Regressions"
+  value: ["Regressions"]
   })
 
 // Choose the state of the benchmark
@@ -461,41 +460,51 @@ microBmProcedChanges = {
 }
 
 // Choose the language
-allLanguageValues = microBmProcedChanges.dedupe('language').array('language')
+allLanguageValues = ["All languages"].concat(microBmProcedChanges.dedupe('language').array('language'))
 
 viewof languageSelected = Inputs.select(allLanguageValues, {
     label: md`**Language**`,
-    value: ["All languages"].concat([allLanguageValues[0]]),
+    value: [allLanguageValues[0]],
     width: boxWidth
 })
 
-// Choose the suite
-allSuiteValues = microBmProcedChanges
-    .filter(aq.escape(d => op.equal(d.language, languageSelected)))
-    .dedupe('suite').array('suite')
+languages = {
+  return (languageSelected === "All languages")
+  ? microBmProcedChanges // If languageSelected is "All languages", no filtering is applied
+  : microBmProcedChanges.filter(aq.escape(d => op.includes(d.language, languageSelected)));
+}
 
+
+allSuiteValues = ["All suites"].concat(languages.dedupe('suite').array('suite'))
+
+// Choose the suite
 viewof suiteSelected = Inputs.select(allSuiteValues, {
     label: md`**Suite**`,
     value: [allSuiteValues[0]],
     width: boxWidth
 })
 
-// Choose the benchmark
-allNameValues = microBmProcedChanges
-    .filter(aq.escape(d => op.equal(d.language, languageSelected)))
-    .filter(aq.escape(d => op.equal(d.suite, suiteSelected)))
-    .dedupe('name').array('name')
 
+suites = {
+  return (suiteSelected === "All suites")
+  ? languages 
+  : languages.filter(aq.escape(d => op.includes(d.suite, suiteSelected)));
+}
+
+allNameValues = ["All benchmarks"].concat(suites.dedupe('name').array('name'))
+
+// Choose the benchmark
 viewof nameSelected = Inputs.select(allNameValues, {
-    label: md`**Name**`,
+    label: md`**Benchmark Name**`,
     value: [allNameValues[0]],
     width: boxWidth
 })
 
-microBmProcedChangesFiltered = microBmProcedChanges
-    .filter(aq.escape(d => op.equal(d.language, languageSelected)))
-    .filter(aq.escape(d => op.equal(d.suite, suiteSelected)))
-    .filter(aq.escape(d => op.equal(d.name, nameSelected)))
+microBmProcedChangesFiltered = {
+  return (nameSelected === "All benchmarks")
+  ? suites 
+  : suites.filter(aq.escape(d => op.includes(d.name, nameSelected)));
+}
 ```
 
 ```{ojs plot-micro-bm}
