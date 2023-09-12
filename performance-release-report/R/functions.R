@@ -36,10 +36,16 @@ compare_baseline_to_contender <- function(.data) {
 get_language_summary_from_comparison <- function(.data) {
   Reduce(bind_rows, .data[c("baseline", "contender")]) %>%
     filter(!is.na(language)) %>%
+    mutate(
+      benchmark_type = case_when(
+        language %in% c("R", "Python") ~ "[macrobenchmarks](#macro-bm)",
+        language %in% c("C++", "Java", "JavaScript") ~ "[microbenchmarks](#micro-bm)",
+      )
+    ) %>% 
     summarise(
       languages = paste(unique(language), collapse = ", "),
       n_benchmarks = length(benchmark_name),
-      .by = run_id
+      .by = c(run_id, benchmark_type)
     )
 }
 

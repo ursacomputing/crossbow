@@ -105,15 +105,18 @@ if (length(run_comp) == 0) {
 
 # Compare the baseline to the contender for 
 # macrobenchmarks
-macro_bm_df <- run_comp %>%
+ursa_i9_bm <- run_comp %>%
   filter(hardware.name == "ursa-i9-9960x") %>%
-  compare_baseline_to_contender() %>%
-  filter(baseline$language %in% c("Python", "R")) ## still need to add in the JS benchmarks
+  compare_baseline_to_contender()
+
+macro_bm_df <- ursa_i9_bm %>%
+  filter(baseline$language %in% c("Python", "R")) 
 
 # microbenchmarks
 micro_bm_df <- run_comp %>%
   filter(hardware.name == "ursa-thinkcentre-m75q") %>%
-  compare_baseline_to_contender()
+  compare_baseline_to_contender() %>% 
+  bind_rows(ursa_i9_bm %>% filter(baseline$language %in% "JavaScript"))
 ```
 
 
@@ -152,18 +155,19 @@ run_summary <- hardware_summary %>%
     run_type = glue("[{run_type}]({links.self})"),
     commit.timestamp = ymd_hms(commit.timestamp)
   ) %>%
-  select(run_type, commit.sha, commit.timestamp, hardware.cpu_model_name, languages, n_benchmarks) %>%
+  select(run_type, commit.sha, commit.timestamp, hardware.cpu_model_name, languages, benchmark_type, n_benchmarks) %>%
   arrange(hardware.cpu_model_name)
 
 run_summary %>% 
   gt() %>% 
-  fmt_markdown(c("commit.sha", "run_type")) %>% 
+  fmt_markdown(c("commit.sha", "run_type", "benchmark_type")) %>% 
   gt::cols_label(
     run_type = "Run Type",
     commit.sha = "Commit SHA",
     commit.timestamp = "Time of Commit",
     hardware.cpu_model_name = "Hardware",
     languages = "Languages",
+    benchmark_type = "Benchmark Type",
     n_benchmarks = "Number of Benchmarks"
   ) %>% 
   tab_footnote(
@@ -184,7 +188,7 @@ if (Sys.Date() %in% unique(as.Date(hardware_summary$commit.timestamp))) {
 }
 ```
 
-# Macrobenchmarks
+# Macrobenchmarks {#macro-bm}
 
 
 
@@ -326,7 +330,7 @@ girafe(
 ```
 
 
-# Microbenchmarks
+# Microbenchmarks {#micro-bm}
 
 ```{r compute-process-micro-bm-data}
 
@@ -340,6 +344,11 @@ micro_bm_proced <- micro_bm_df %>%
   group_modify(~ tidy_compare(.x, .y)) %>% 
   ungroup() %>% 
   filter(!is.na(name)) %>% 
+  filter(!is.na(analysis.lookback_z_score.regression_indicated)) %>% ## indicator of some empty data
+  ## this will enable the yaxis to be populated with names when params is NA. params is preferable because it is more specific
+  mutate(params = ifelse(is.na(params), baseline.case_permutation, params)) %>% 
+  rowwise() %>%
+  mutate(params = paste(strwrap(params, 10), collapse="\n")) %>% 
   clean_names() %>% 
   select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated, change, difference, pn_lab, analysis_lookback_z_score_z_score, analysis_lookback_z_score_z_threshold, analysis_pairwise_percent_change, baseline_single_value_summary, contender_single_value_summary, cb_url, unit)
 ```
@@ -348,6 +357,7 @@ There are currently `r nrow(micro_bm_proced)` microbenchmarks in the Arrow bench
 
 ```{r table-micro-bm-summary}
 threshold <- unique(micro_bm_proced$analysis_lookback_z_score_z_threshold)
+threshold <- threshold[!is.na(threshold)]
 micro_bm_proced %>% 
   count(language, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated) %>% 
   mutate(col_var = case_when(
@@ -428,7 +438,7 @@ microBmProced = aq.from(transpose(ojs_micro_bm_proced))
 
 ## Microbenchmark explorer {#micro-bm-explorer}
 
-This microbenchmarks explorer allows you to filter the microbenchmark results by language, suite, and benchmark name and toggle regressions and improvements based on a threshold level of `r threshold` z-scores. Languages, suite and benchmark name default to showing all results for that category. The display can be further filtered by selecting a specific language, suite, or benchmark name. Each bar can be clicked to open the Conbench UI page for that benchmark providing additional history and metadata.
+This microbenchmarks explorer allows you to filter the microbenchmark results by language, suite, and benchmark name and toggle regressions and improvements based on a threshold level of `r threshold` z-scores. Languages, suite and benchmark name default to showing all results for that category. Additional benchmark parameters are displayed on the vertical axis resulting in each bar representing a case permutation. If a becnhmark does not have additional parameters, the full case permutation string is displayted. The display can be further filtered by selecting a specific language, suite, or benchmark name. Each bar can be clicked to open the Conbench UI page for that benchmark providing additional history and metadata for that case permutation.
 
 ```{ojs filter-micro-bm}
 // Top level: are there regressions/improvements?
