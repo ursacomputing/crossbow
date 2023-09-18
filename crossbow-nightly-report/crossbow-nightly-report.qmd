@@ -47,7 +47,7 @@ source("R/functions.R")
 ```
 
 ```{r vars}
-lookback_window <- Sys.getenv("CROSSBOW_LOOKBACK_WINDOW", 120)
+lookback_window <- Sys.getenv("CROSSBOW_LOOKBACK_WINDOW", 121)
 ```
 
 
@@ -191,11 +191,9 @@ trendPlot = function(data) {
       fontSize: "16px"
     },
     marks: [
-      Plot.lineY(data, Plot.windowY(10, spec)),
-      plot.text(data, {})
       Plot.frame(),
-      // only plot when there are no NaN or undefined values
-      Plot.dot(data, {filter: d => d.added_spec !== NaN, ...added_spec}),
+      Plot.lineY(data, Plot.windowY(10, spec)),
+      Plot.dot(data, added_spec),
       Plot.axisX({ticks: d3.utcMonth.every(1), tickFormat: " %b %d", tickSize: 14, tickPadding: -8, textAnchor: "start"}),
       Plot.axisX({ticks: d3.utcYear, tickFormat: "\n %Y", tickSize: 24, tickPadding: -20, textAnchor: "start"}),
       Plot.gridX({ticks: d3.utcMonth})
@@ -213,6 +211,8 @@ import {slider as slide} from "@jashkenas/inputs"; // more configurable slider
 timeScale = d3.scaleTime()
     .domain([initialPlotStartDate, plotEndDate])
     .range([0, d3.timeDay.count(initialPlotStartDate, plotEndDate)]); 
+
+// timeScale = d3.scaleBand().range([0, d3.timeDay.count(initialPlotStartDate, plotEndDate)]);
 
 passPct = aq.from(transpose(ojs_pass_pct))
   .derive({ nightly_date: aq.escape(d => parser(d.nightly_date)) })
@@ -235,11 +235,10 @@ viewof slider = slide({
   min: 0, 
   max: d3.timeDay.count(initialPlotStartDate, plotEndDate), 
   format: d => md`${d3.timeFormat("%B %d, %Y")(timeScale.invert(d))}`,
-  title: "Plot minimum date", 
+  title: "Slide to select a Date range",
   value: d3.timeDay.count(initialPlotStartDate, plotDefaultDate),
   step: 2
 })
-
 // turn slide number back into a date
 date = timeScale.invert(slider)
 ```
