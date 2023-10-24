@@ -172,7 +172,7 @@ generate_compare_url <- function(x) {
   contender_id <- unique(x$contender$run_id)
   contender_id <- contender_id[!is.na(contender_id)]
 
-  glue("https://conbench.ursa.dev/compare/runs/{contender_id}...{baseline_id}")
+  glue("https://conbench.ursa.dev/compare/runs/{baseline_id}...{contender_id}")
 }
 
 
@@ -189,11 +189,11 @@ top_zscore_table <- function(.data, top_n = 20, direction = c("improvement", "re
   }
 
   ## let's convert things to megabytes
-  .data <- .data %>% 
+  .data <- .data %>%
     mutate(across(ends_with("single_value_summary"), ~ case_when(
       unit == "B/s" ~ .x/1000000, ## B/s -> MB/s
       TRUE ~ .x
-    ))) %>% 
+    ))) %>%
     mutate(unit = case_when(
       unit == "B/s" ~ "MB/s",
       TRUE ~ unit
@@ -204,9 +204,9 @@ top_zscore_table <- function(.data, top_n = 20, direction = c("improvement", "re
     mutate(name = glue("[{name}]({cb_url})")) %>%
     select(
       language, suite, name, params, analysis_lookback_z_score_z_score, analysis_pairwise_percent_change, baseline_single_value_summary, contender_single_value_summary, unit) %>%
-    arrange(language, suite, name, params) %>% 
+    arrange(language, suite, name, params) %>%
     gt(rowname_col = "language", groupname_col = "suite") %>%
-    fmt_markdown(columns = "name") %>% 
+    fmt_markdown(columns = "name") %>%
     fmt_percent(columns = "analysis_pairwise_percent_change", decimals = 0) %>%
     fmt_number(columns = ends_with("single_value_summary"), decimals = 0) %>%
     fmt_number(columns = "analysis_lookback_z_score_z_score", decimals = 2) %>%
@@ -223,9 +223,9 @@ top_zscore_table <- function(.data, top_n = 20, direction = c("improvement", "re
     tab_spanner(columns = c("baseline_single_value_summary", "contender_single_value_summary", "unit"), label= "Results") %>%
     tab_spanner(columns = starts_with("analysis_"), label= "Analysis") %>%
     opt_table_font(font = google_font("Roboto Mono")) %>%
-    tab_options(table.font.size = "10px") %>% 
+    tab_options(table.font.size = "10px") %>%
     tab_footnote(
       footnote = "MB/s = megabytes per second; ns = nanoseconds; i/s = iterations per second",
       locations = cells_body(columns = "unit")
-    ) 
+    )
 }
