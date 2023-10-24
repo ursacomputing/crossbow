@@ -409,7 +409,7 @@ top_zscore_table(micro_bm_proced, direction = "improvement")
 
 ## z-score distribution
 
-Plotting the distribution of zscores for all microbenchmark results will help identify any systematic differences between the baseline and contender. The shape of the distribution of z-scores provides a sense of the overall performance of the contender relative to the baseline. Narrow distributions centered around 0 indicate that the contender is performing similarly to the baseline. Wider distributions indicate that the contender is performing differently than the baseline with left skewing indicating regressions and right skewing indicating improvements.
+Plotting the distribution of zscores for all microbenchmark results will help identify any systematic differences between the baseline and contender. The shape of the distribution of z-scores provides a sense of the overall performance of the contender relative to the baseline. Narrow distirbutions centered around 0 indicate that the contender is performing similarly to the baseline. Wider distributions indicate that the contender is performing differently than the baseline with left skewing indicating regressions and right skewing indicating improvements.
  
 
 ```{ojs}
@@ -443,7 +443,7 @@ microBmProced = aq.from(transpose(ojs_micro_bm_proced))
 
 ## Microbenchmark explorer {#micro-bm-explorer}
 
-This microbenchmarks explorer allows you to filter the microbenchmark results by language, suite, and benchmark name and toggle regressions and improvements based on a threshold level of `r threshold` z-scores. Languages, suite and benchmark name need to be selected to show a benchmark plot. Additional benchmark parameters are displayed on the vertical axis resulting in each bar representing a case permutation. If a benchmark does not have additional parameters, the full case permutation string is displayed. Each bar can be clicked to open the Conbench UI page for that benchmark providing additional history and metadata for that case permutation.
+This microbenchmarks explorer allows you to filter the microbenchmark results by language, suite, and benchmark name and toggle regressions and improvements based on a threshold level of `r threshold` z-scores. Languages, suite and benchmark name default to showing all results for that category. Additional benchmark parameters are displayed on the vertical axis resulting in each bar representing a case permutation. If a becnhmark does not have additional parameters, the full case permutation string is displayted. The display can be further filtered by selecting a specific language, suite, or benchmark name. Each bar can be clicked to open the Conbench UI page for that benchmark providing additional history and metadata for that case permutation.
 
 ```{ojs filter-micro-bm}
 // Top level: are there regressions/improvements?
@@ -475,7 +475,7 @@ microBmProcedChanges = {
 }
 
 // Choose the language
-allLanguageValues = [null].concat(microBmProcedChanges.dedupe('language').array('language'))
+allLanguageValues = ["All languages"].concat(microBmProcedChanges.dedupe('language').array('language'))
 
 viewof languageSelected = Inputs.select(allLanguageValues, {
     label: md`**Language**`,
@@ -484,13 +484,13 @@ viewof languageSelected = Inputs.select(allLanguageValues, {
 })
 
 languages = {
-  return (languageSelected === null)
+  return (languageSelected === "All languages")
   ? microBmProcedChanges // If languageSelected is "All languages", no filtering is applied
   : microBmProcedChanges.filter(aq.escape(d => op.includes(d.language, languageSelected)));
 }
 
 
-allSuiteValues = [null].concat(languages.dedupe('suite').array('suite'))
+allSuiteValues = ["All suites"].concat(languages.dedupe('suite').array('suite'))
 
 // Choose the suite
 viewof suiteSelected = Inputs.select(allSuiteValues, {
@@ -501,12 +501,12 @@ viewof suiteSelected = Inputs.select(allSuiteValues, {
 
 
 suites = {
-  return (suiteSelected === null)
+  return (suiteSelected === "All suites")
   ? languages 
   : languages.filter(aq.escape(d => op.includes(d.suite, suiteSelected)));
 }
 
-allNameValues = [null].concat(suites.dedupe('name').array('name'))
+allNameValues = ["All benchmarks"].concat(suites.dedupe('name').array('name'))
 
 // Choose the benchmark
 viewof nameSelected = Inputs.select(allNameValues, {
@@ -516,7 +516,7 @@ viewof nameSelected = Inputs.select(allNameValues, {
 })
 
 microBmProcedChangesFiltered = {
-  return (nameSelected === null)
+  return (nameSelected === "All benchmarks")
   ? suites 
   : suites.filter(aq.escape(d => op.includes(d.name, nameSelected)));
 }
@@ -538,66 +538,54 @@ margins = {
   return margin;
 }
 
-
-displayPlot = nameSelected !== null && suiteSelected !== null && languageSelected !== null
-
-// Only display plots if a benchmark is selected
-mbPlot = {
-  if (displayPlot) {
-    return Plot.plot({
-      width: 1200,
-      height: microBmProcedChangesFiltered.numRows() * 30 + 100, //adjust height of plot based on number of rows
-      marginRight: margins[0],
-      marginLeft: margins[1],
-      label: null,
-      x: {
-        axis: "top",
-        label: "% change",
-        labelAnchor: "center",
-        labelOffset: 30
-      },
-      style: {
-        fontSize: "14px",
-        fontFamily: "Roboto Mono"
-      },
-      color: {
-        range: ojs_change_cols,
-        domain: ojs_pn_lab,
-        type: "categorical",
-        legend: true
-      },
-      marks: [
-        Plot.barX(microBmProcedChangesFiltered, {
-          y: "params",
-          x: "change",
-          color: "black",
-          fill: "pn_lab",
-          fillOpacity: 0.75,
-          sort: { y: "x" },
-          channels: { difference: "difference", params: "params" },
-          href: "cb_url",
-          tip: true
+Plot.plot({
+  width: 1200,
+  height: (microBmProcedChangesFiltered.numRows()*30)+100, //adjust height of plot based on number of rows
+  marginRight: margins[0],
+  marginLeft: margins[1],
+  label: null,
+  x: {
+    axis: "top",
+    label: "% change",
+    labelAnchor: "center",
+    labelOffset: 30
+  },
+  style: {
+    fontSize: "14px",
+    fontFamily: "Roboto Mono"
+    },
+  color: {
+    range: ojs_change_cols,
+    domain: ojs_pn_lab,
+    type: "categorical",
+    legend: true
+  },
+  marks: [
+    Plot.barX(microBmProcedChangesFiltered, {
+      y: "params", 
+      x: "change", 
+      color: "black",
+      fill: "pn_lab", 
+      fillOpacity: 0.75,
+      sort: {y: "x"},
+      channels: {difference: "difference", params: "params"}, 
+      href: "cb_url",
+      tip: true
+      }),
+    Plot.gridX({stroke: "white", strokeOpacity: 0.5}),
+    Plot.ruleX([0]),
+    d3
+      .groups(microBmProcedChangesFiltered, (d) => d.change > 0)
+      .map(([posneg, dat]) => [
+        Plot.axisY({
+          x: 0,
+          ticks: dat.map((d) => d.params),
+          tickSize: 0,
+          anchor: posneg ? "left" : "right"
         }),
-        Plot.gridX({ stroke: "white", strokeOpacity: 0.5 }),
-        Plot.ruleX([0]),
-        d3
-          .groups(microBmProcedChangesFiltered, (d) => d.change > 0)
-          .map(([posneg, dat]) => [
-            Plot.axisY({
-              x: 0,
-              ticks: dat.map((d) => d.params),
-              tickSize: 0,
-              anchor: posneg ? "left" : "right"
-            })
-          ])
-      ]
-    });
-  } else {
-    return md`**Language, suite and benchmark all need a selection for a plot to be displayed.**`;
-  }
-}
-
-mbPlot
+      ])
+  ]
+})
 ```
 
 
