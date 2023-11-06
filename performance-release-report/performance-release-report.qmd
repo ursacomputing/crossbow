@@ -110,13 +110,13 @@ ursa_i9_bm <- run_comp %>%
   compare_baseline_to_contender()
 
 macro_bm_df <- ursa_i9_bm %>%
-  filter(baseline$language %in% c("Python", "R")) 
+  filter(baseline.language %in% c("Python", "R")) 
 
 # microbenchmarks
 micro_bm_df <- run_comp %>%
   filter(hardware.name == "ursa-thinkcentre-m75q") %>%
   compare_baseline_to_contender() %>% 
-  bind_rows(ursa_i9_bm %>% filter(baseline$language %in% "JavaScript"))
+  bind_rows(ursa_i9_bm %>% filter(baseline.language %in% "JavaScript"))
 ```
 
 
@@ -143,7 +143,15 @@ if (nrow(hardware_summary) != 2L*length(hardware_name)) {
 ```{r table-run-summary}
 
 ## get additional information about the benchmarks
-benchmark_summary <- map_df(list(macro_bm_df, micro_bm_df), get_language_summary_from_comparison)
+benchmark_summary <- micro_bm_df %>%
+  bind_rows(macro_bm_df) %>%
+  select(starts_with("baseline") | starts_with("contender")) %>%
+  pivot_longer(
+    cols = everything(),  # Select all columns
+    names_to = c("run_type", ".value"),  # Define the columns for group and values
+    names_pattern = "(.*?)\\.(.*)"  # Use regex to split column names into group and value
+  ) %>% 
+  get_language_summary_from_comparison() 
 
 
 run_summary <- hardware_summary %>%
@@ -206,16 +214,16 @@ names(change_cols) <- c(glue("{contender_git_commit_short} (contender) faster"),
 
 macro_bm_proced <- macro_bm_df %>%
   # csv-read had very different kinds of runs
-  filter(baseline$benchmark_name != "csv-read") %>%
+  filter(baseline.benchmark_name != "csv-read") %>%
   # Remove the "TPCH-" prefix and any 0 at the start of the number
-  mutate(baseline_tags = mutate(baseline$tags, query_id = gsub("^0", "", gsub("TPCH-", "", query_id)))) %>%
+  mutate(baseline.tags.query_id = gsub("^0", "", gsub("TPCH-", "", baseline.tags.query_id))) %>%
   mutate(dataset = case_when(
-    baseline$benchmark_name == "tpch" ~ glue("Query id: {baseline_tags$query_id}"),
-    baseline$benchmark_name == "wide-dataframe" ~ "wide-dataframe",
-    baseline$benchmark_name == "partitioned-dataset-filter" ~ glue("{baseline$benchmark_name}: {baseline_tags$query} query"),
-    TRUE ~ baseline_tags$dataset
+    baseline.benchmark_name == "tpch" ~ glue("Query id: {baseline.tags.query_id}"),
+    baseline.benchmark_name == "wide-dataframe" ~ "wide-dataframe",
+    baseline.benchmark_name == "partitioned-dataset-filter" ~ glue("{baseline.benchmark_name}: {baseline.tags.query} query"),
+    TRUE ~ baseline.tags.dataset
   )) %>%
-  group_by(baseline$language, baseline$benchmark_name) %>%
+  group_by(baseline.language, baseline.benchmark_name) %>%
   group_map(~ tidy_compare(.x, .y))
 
 macro_bm_list <- list()
@@ -275,6 +283,8 @@ cat(python_plots, sep = "\n")
 #| warning: FALSE
  
 lang <- "R"
+bm_names <- names(macro_bm_list[[lang]])
+
 r_plots <- map_chr(names(macro_bm_list[[lang]]), \(bm_name) {
   knit_child(
     text = c(
@@ -344,8 +354,8 @@ girafe(
 ## data.frame because that data structure is easier to work with
 ## using arquero
 micro_bm_proced <- micro_bm_df %>%
-  mutate(baseline_tags = baseline$tags) %>%
-  group_by(baseline$language, baseline$benchmark_name) %>%
+  filter(!is.na(baseline.language)) %>%
+  group_by(baseline.language, baseline.benchmark_name) %>% 
   group_modify(~ tidy_compare(.x, .y)) %>% 
   ungroup() %>% 
   filter(!is.na(name)) %>% 

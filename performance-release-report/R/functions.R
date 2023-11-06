@@ -1,6 +1,6 @@
 #' Find runs for a given hardware name and two git commits
 #' A wrapper around conbenchcoms::runs()
-#' 
+#'
 #' @return A tibble of runs (or an empty tibble if no runs were found)
 
 find_runs <- function(baseline_git_commit, contender_git_commit, hardware_name) {
@@ -22,11 +22,9 @@ find_runs <- function(baseline_git_commit, contender_git_commit, hardware_name) 
 #' A wrapper around conbenchcoms::compare() which looks for
 #' contender and baseline runs in the given data frame
 compare_baseline_to_contender <- function(.data) {
-  compare(
-    type = "runs",
+  compare_runs(
     .data$id[.data$run_type == "baseline"],
-    .data$id[.data$run_type == "contender"],
-    simplifyVector = TRUE
+    .data$id[.data$run_type == "contender"]
   ) %>%
     as_tibble()
 }
@@ -34,14 +32,14 @@ compare_baseline_to_contender <- function(.data) {
 
 #' helper function to get the language summary from a comparison
 get_language_summary_from_comparison <- function(.data) {
-  Reduce(bind_rows, .data[c("baseline", "contender")]) %>%
+  .data %>%
     filter(!is.na(language)) %>%
     mutate(
       benchmark_type = case_when(
         language %in% c("R", "Python") ~ "[macrobenchmarks](#macro-bm)",
         language %in% c("C++", "Java", "JavaScript") ~ "[microbenchmarks](#micro-bm)",
       )
-    ) %>% 
+    ) %>%
     summarise(
       languages = paste(unique(language), collapse = ", "),
       n_benchmarks = length(benchmark_name),
@@ -61,7 +59,7 @@ is_gha <- function() {
 plot_comparison <- function(plot_df, alpha = 0.7) {
 
   ## Can be a uri as well
-  plot_df <- plot_df %>% 
+  plot_df <- plot_df %>%
     mutate(dataset = case_when(
       is.na(dataset) ~ dataset_uri,
       TRUE ~ dataset
@@ -109,7 +107,7 @@ plot_comparison <- function(plot_df, alpha = 0.7) {
     guides(colour = "none") +
     ylab("Dataset") +
     xlab("% change")
-  
+
   ## Some height adjustments
   g_heights <- 6
   g_widths <- 16
@@ -134,23 +132,23 @@ plot_comparison <- function(plot_df, alpha = 0.7) {
 #' @param .y benchmark name
 #' @return tibble
 tidy_compare <- function(.x, .y) {
-  tags <- .x$baseline_tags[colSums(!is.na(.x$baseline_tags)) > 0]
+  tags <- .x %>%
+    select(starts_with("baseline.tags")) %>%
+    select(where(~!all(is.na(.))))
 
-  if (length(unique(tags$name)) > 1) {
+  if (length(unique(tags$baseline.tags.name)) > 1) {
     browser()
   }
 
   tag_names <- colnames(tags)
-  tag_names <- tag_names[!tag_names %in% c("name", "query_id", "language", "engine", "memory_map", "query", "async")]
+  tag_names <- tag_names[!tag_names %in% c("baseline.tags.name", "baseline.tags.query_id", "baseline.tags.language", "baseline.tags.engine", "baseline.tags.memory_map", "baseline.tags.query", "baseline.tags.async")]
 
   plot_df <- .x %>%
-    jsonlite::flatten() %>%
-    as_tibble() %>%
-    select(-any_of(c("baseline_tags.dataset", "baseline_tags.language"))) %>%
-    rename_with(~ gsub("baseline_tags.", "", .)) %>%
+    select(-any_of(c("baseline.tags.dataset", "baseline.tags.language"))) %>%
+    rename_with(~ gsub("baseline.tags.", "", .)) %>%
     mutate(change = analysis.pairwise.percent_change) %>%
     mutate(difference = paste0(round((baseline.single_value_summary - contender.single_value_summary), 4), "", unit)) %>%
-    mutate(cb_url = glue('https://conbench.ursa.dev/benchmark-results/{baseline.benchmark_result_id}/')) %>% 
+    mutate(cb_url = glue('https://conbench.ursa.dev/benchmark-results/{baseline.benchmark_result_id}/')) %>%
     mutate(
       pn_lab = case_when(
         analysis.pairwise.percent_change == 0 ~ "no change",
@@ -160,8 +158,8 @@ tidy_compare <- function(.x, .y) {
     ) %>%
     mutate(
       tags_used = list(tag_names),
-      language = .y$`baseline$language`,
-      benchmark_name = .y$`baseline$benchmark_name`
+      language = .y$baseline.language,
+      benchmark_name = .y$baseline.benchmark_name
     )
 }
 
