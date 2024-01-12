@@ -157,7 +157,7 @@ tidy_compare <- function(.x, .y) {
       )
     ) %>%
     mutate(
-      tags_used = list(tag_names),
+      tags_used = list(gsub("baseline.tags.", "", tag_names)), ## just need the bare tag names
       language = .y$baseline.language,
       benchmark_name = .y$baseline.benchmark_name
     )
