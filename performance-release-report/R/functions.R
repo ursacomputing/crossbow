@@ -205,7 +205,7 @@ top_zscore_table <- function(.data, top_n = 20, direction = c("improvement", "re
     arrange(language, suite, name, params) %>%
     gt(rowname_col = "language", groupname_col = "suite") %>%
     fmt_markdown(columns = "name") %>%
-    fmt_percent(columns = "analysis_pairwise_percent_change", decimals = 0) %>%
+    fmt_percent(columns = "analysis_pairwise_percent_change", scale_values = FALSE, decimals = 2) %>%
     fmt_number(columns = ends_with("single_value_summary"), decimals = 0) %>%
     fmt_number(columns = "analysis_lookback_z_score_z_score", decimals = 2) %>%
     cols_label(
