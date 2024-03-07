@@ -1,0 +1,59 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+jobs:
+- job: linux
+  pool:
+    vmImage: ubuntu-latest
+  timeoutInMinutes: 360
+  variables:
+    DEBIAN: 11
+
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.8'
+
+  - script: |
+      git clone --no-checkout https://github.com/pitrou/arrow.git arrow
+      git -C arrow fetch -t https://github.com/pitrou/arrow.git gh38821-delete-dir-crash
+      git -C arrow checkout FETCH_HEAD
+      git -C arrow submodule update --init --recursive
+      git -C arrow remote add upstream https://github.com/apache/arrow.git
+    displayName: Clone arrow
+
+  - script: pip install -e arrow/dev/archery[docker]
+    displayName: Setup Archery
+
+  - script: |
+      archery docker run \
+        -e ARROW_DOCS_VERSION="16.0.0.dev237" \
+        -e SETUPTOOLS_SCM_PRETEND_VERSION="16.0.0.dev237" \
+         \
+        debian-python \
+        
+    displayName: Execute Docker Build
+    env:
+      AWS_ACCESS_KEY_ID: "$(AWS_ACCESS_KEY_ID)"
+      AWS_SECRET_ACCESS_KEY: "$(AWS_SECRET_ACCESS_KEY)"
+      SCCACHE_BUCKET: "$(SCCACHE_BUCKET)"
+      SCCACHE_REGION: "$(SCCACHE_REGION)"
+      SCCACHE_S3_KEY_PREFIX: "sccache"
+
+
+
