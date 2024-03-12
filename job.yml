@@ -1,0 +1,384 @@
+!Job
+target: !Target
+  head: 429fcda9dc0cef01e659d5e9e4735ca1c603f334
+  email: unknown
+  branch: ci-debian-12
+  remote: https://github.com/kou/arrow.git
+  github_repo: kou/arrow
+  version: 16.0.0.dev258
+  r_version: 15.0.1.100000258
+  no_rc_version: 16.0.0.dev258
+  no_rc_r_version: 15.0.1.100000258
+  no_rc_semver_version: 16.0.0-dev258
+  no_rc_snapshot_version: 16.0.0-SNAPSHOT
+tasks:
+  test-conda-python-3.12: !Task
+    name: test-conda-python-3.12
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.12'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+
+    branch: actions-81621861bb-github-test-conda-python-3.12
+    commit: d433a325f3df86f37ec538e7049572418c4a29a0
+  test-conda-python-3.9-pandas-latest: !Task
+    name: test-conda-python-3.9-pandas-latest
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.9'
+        PANDAS: latest
+        NUMPY: latest
+        # ensure we have at least one build with parquet encryption disabled
+        PARQUET_REQUIRE_ENCRYPTION: OFF
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+    branch: actions-81621861bb-github-test-conda-python-3.9-pandas-latest
+    commit: e0ae100ecd1159b87cedda31ac3698d1d0e5af63
+  test-conda-python-3.11-hypothesis: !Task
+    name: test-conda-python-3.11-hypothesis
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: 3.11
+        HYPOTHESIS_PROFILE: ci
+        PYARROW_TEST_HYPOTHESIS: ON
+        # limit to execute hypothesis tests only
+        PYTEST_ARGS: -m hypothesis -W error
+      image: conda-python-pandas
+
+    branch: actions-81621861bb-github-test-conda-python-3.11-hypothesis
+    commit: 02ab7422a0b11357de3813a7f42365930c1b8397
+  test-conda-python-3.11-spark-master: !Task
+    name: test-conda-python-3.11-spark-master
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.11'
+        SPARK: master
+        TEST_PYARROW_ONLY: 'false'
+        NUMPY: latest
+        JDK: '17'
+      # use the branch-3.0 of spark, so prevent reusing any layers
+      flags: --no-leaf-cache
+      image: conda-python-spark
+      fetch_depth: 0
+
+    branch: actions-81621861bb-github-test-conda-python-3.11-spark-master
+    commit: f472dd87be24b64bded74e4481e3b3ad7e1d9cec
+  test-conda-python-3.10-hdfs-2.9.2: !Task
+    name: test-conda-python-3.10-hdfs-2.9.2
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        HDFS: 2.9.2
+      image: conda-python-hdfs
+    branch: actions-81621861bb-github-test-conda-python-3.10-hdfs-2.9.2
+    commit: b407a5fe9aebfa6ea92eefccb6b9118b01de3689
+  test-conda-python-3.11-dask-latest: !Task
+    name: test-conda-python-3.11-dask-latest
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: 3.11
+        DASK: latest
+      # use the latest dask release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-dask
+    branch: actions-81621861bb-github-test-conda-python-3.11-dask-latest
+    commit: dda82516f4bce3b5a441d9918a7505210ffefcca
+  test-ubuntu-22.04-python-3: !Task
+    name: test-ubuntu-22.04-python-3
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: ubuntu-python
+
+    branch: actions-81621861bb-github-test-ubuntu-22.04-python-3
+    commit: 00f7efdccc2b37576900418f93e1ee55966fc270
+  test-conda-python-3.10-cython2: !Task
+    name: test-conda-python-3.10-cython2
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+      image: conda-python-cython2
+
+    branch: actions-81621861bb-github-test-conda-python-3.10-cython2
+    commit: b58f066add0f4ecfd4f6a49b0dce691d3ac51bd5
+  test-conda-python-3.11-pandas-upstream_devel: !Task
+    name: test-conda-python-3.11-pandas-upstream_devel
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.11'
+        PANDAS: upstream_devel
+        NUMPY: nightly
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+
+    branch: actions-81621861bb-github-test-conda-python-3.11-pandas-upstream_devel
+    commit: adda279b0c885e8d2ea93e360b780bf8b0af5811
+  test-conda-python-3.8-pandas-1.0: !Task
+    name: test-conda-python-3.8-pandas-1.0
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.8'
+        PANDAS: '1.0'
+        NUMPY: '1.19'
+      image: conda-python-pandas
+    branch: actions-81621861bb-github-test-conda-python-3.8-pandas-1.0
+    commit: 92848b19775d2140d502979a52b27bdeb719bec7
+  test-conda-python-3.11-dask-upstream_devel: !Task
+    name: test-conda-python-3.11-dask-upstream_devel
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: 3.11
+        DASK: upstream_devel
+      # use the latest dask release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-dask
+
+    branch: actions-81621861bb-github-test-conda-python-3.11-dask-upstream_devel
+    commit: 14a35eac40d960b6fbee1b6467203bc26850f018
+  test-debian-12-python-3-amd64: !Task
+    name: test-debian-12-python-3-amd64
+    ci: azure
+    template: docker-tests/azure.linux.yml
+    artifacts: []
+    params:
+      env:
+        DEBIAN: 12
+      image: debian-python
+
+    branch: actions-81621861bb-azure-test-debian-12-python-3-amd64
+    commit: 509a89807666ccad87c0b9f265430e5ba0b25087
+  test-conda-python-3.10: !Task
+    name: test-conda-python-3.10
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+    branch: actions-81621861bb-github-test-conda-python-3.10
+    commit: 2de86cb919a66d90f40494d23fa05ffefaa2ce54
+  test-cuda-python: !Task
+    name: test-cuda-python
+    ci: github
+    template: docker-tests/github.cuda.yml
+    artifacts: []
+    params:
+      image: ubuntu-cuda-python
+
+  ############################## Fuzz tests #################################
+
+    branch: actions-81621861bb-github-test-cuda-python
+    commit: b3132c88d679cca4bcc870dd192d5988dbfc1e11
+  test-conda-python-3.9: !Task
+    name: test-conda-python-3.9
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.9'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+    branch: actions-81621861bb-github-test-conda-python-3.9
+    commit: 1df57d1399faf79d0a3c7cd2261155f08e0a67ba
+  test-fedora-39-python-3: !Task
+    name: test-fedora-39-python-3
+    ci: azure
+    template: docker-tests/azure.linux.yml
+    artifacts: []
+    params:
+      env:
+        FEDORA: 39
+      image: fedora-python
+
+    branch: actions-81621861bb-azure-test-fedora-39-python-3
+    commit: 8a514d9869cb983060ccd5a47ffa9ea85a3aa184
+  test-debian-12-python-3-i386: !Task
+    name: test-debian-12-python-3-i386
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        ARCH: i386
+        DEBIAN: 12
+      flags: -e ARROW_S3=OFF -e ARROW_GANDIVA=OFF
+      image: debian-python
+
+    branch: actions-81621861bb-github-test-debian-12-python-3-i386
+    commit: d5f287d6bd6f1137899cab560a24abac8ba35d3e
+  test-conda-python-3.10-hdfs-3.2.1: !Task
+    name: test-conda-python-3.10-hdfs-3.2.1
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        HDFS: 3.2.1
+      image: conda-python-hdfs
+
+    branch: actions-81621861bb-github-test-conda-python-3.10-hdfs-3.2.1
+    commit: 4e0260a34a86baebcde0ef10f20b197802e5445e
+  test-conda-python-3.8: !Task
+    name: test-conda-python-3.8
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.8'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+    branch: actions-81621861bb-github-test-conda-python-3.8
+    commit: 51b05f4b86c758065b2e0b0d2b39d6c26cfd325e
+  test-ubuntu-20.04-python-3: !Task
+    name: test-ubuntu-20.04-python-3
+    ci: azure
+    template: docker-tests/azure.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 20.04
+      image: ubuntu-python
+
+    branch: actions-81621861bb-azure-test-ubuntu-20.04-python-3
+    commit: 2d6d0a22ce55b5b372eec1b95869c114a5fba226
+  test-conda-python-3.10-substrait: !Task
+    name: test-conda-python-3.10-substrait
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+      image: conda-python-substrait
+
+    branch: actions-81621861bb-github-test-conda-python-3.10-substrait
+    commit: 217b38f73fad50e9b549061781ba9eeee36d8720
+  test-conda-python-3.10-spark-v3.5.0: !Task
+    name: test-conda-python-3.10-spark-v3.5.0
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        SPARK: v3.5.0
+        TEST_PYARROW_ONLY: 'false'
+        NUMPY: '1.23'
+        JDK: '8'
+      # use the branch-3.0 of spark, so prevent reusing any layers
+      flags: --no-leaf-cache
+      image: conda-python-spark
+      fetch_depth: 0
+    branch: actions-81621861bb-github-test-conda-python-3.10-spark-v3.5.0
+    commit: eb5598f782b22d15d3fb9202bcaf83f98c102c72
+  test-conda-python-3.11: !Task
+    name: test-conda-python-3.11
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.11'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+    branch: actions-81621861bb-github-test-conda-python-3.11
+    commit: f57d0f8bb6f55f4dad0e4bcbbeeee39bd74a65e4
+  test-conda-python-3.10-pandas-nightly: !Task
+    name: test-conda-python-3.10-pandas-nightly
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        PANDAS: nightly
+        NUMPY: nightly
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+    branch: actions-81621861bb-github-test-conda-python-3.10-pandas-nightly
+    commit: fad32ae802d66a9cff52bbd3f79d7cc7b8135e1a
+  test-conda-python-3.8-spark-v3.5.0: !Task
+    name: test-conda-python-3.8-spark-v3.5.0
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.8'
+        SPARK: v3.5.0
+        TEST_PYARROW_ONLY: 'false'
+        NUMPY: latest
+        JDK: '8'
+      # use the branch-3.0 of spark, so prevent reusing any layers
+      flags: --no-leaf-cache
+      image: conda-python-spark
+      fetch_depth: 0
+    branch: actions-81621861bb-github-test-conda-python-3.8-spark-v3.5.0
+    commit: 26ecd837f110bac4c3be2947a70a60eac25ae105
+  test-conda-python-3.10-pandas-latest: !Task
+    name: test-conda-python-3.10-pandas-latest
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        PANDAS: latest
+        NUMPY: latest
+        # ensure we have at least one build with parquet encryption disabled
+        PARQUET_REQUIRE_ENCRYPTION: OFF
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+    branch: actions-81621861bb-github-test-conda-python-3.10-pandas-latest
+    commit: 8002409066ea86b6a17b733a06a956d5c1423119
+params:
+  pr_number: 40455
+branch: actions-81621861bb
