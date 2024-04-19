@@ -144,7 +144,7 @@ tidy_compare <- function(.x, .y) {
   tag_names <- tag_names[!tag_names %in% c("baseline.tags.name", "baseline.tags.query_id", "baseline.tags.language", "baseline.tags.engine", "baseline.tags.memory_map", "baseline.tags.query", "baseline.tags.async")]
 
   plot_df <- .x %>%
-    select(-any_of(c("baseline.tags.dataset", "baseline.tags.language"))) %>%
+    select(-any_of(c("baseline.tags.dataset", "baseline.tags.language", "baseline.tags.unit"))) %>%
     rename_with(~ gsub("baseline.tags.", "", .)) %>%
     mutate(change = analysis.pairwise.percent_change) %>%
     mutate(difference = paste0(round((baseline.single_value_summary - contender.single_value_summary), 4), "", unit)) %>%
