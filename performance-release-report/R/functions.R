@@ -227,3 +227,55 @@ top_zscore_table <- function(.data, top_n = 20, direction = c("improvement", "re
       locations = cells_body(columns = "unit")
     )
 }
+
+top_perf_table <- function(.data, top_n = 20, direction = c("improvement", "regression")) {
+
+  direction <- match.arg(direction)
+
+  if (direction == "improvement") {
+    .data <- .data %>%
+      arrange(desc(analysis_pairwise_percent_change))
+  } else {
+    .data <- .data %>%
+      arrange(analysis_pairwise_percent_change)
+  }
+
+  ## let's convert things to megabytes
+  .data <- .data %>%
+    mutate(across(ends_with("single_value_summary"), ~ case_when(
+      unit == "B/s" ~ .x/1000000, ## B/s -> MB/s
+      TRUE ~ .x
+    ))) %>%
+    mutate(unit = case_when(
+      unit == "B/s" ~ "MB/s",
+      TRUE ~ unit
+    ))
+
+  .data %>%
+    head(top_n) %>%
+    mutate(name = glue("[{name}]({cb_url})")) %>%
+    select(
+      language, suite, name, params, analysis_pairwise_percent_change, baseline_single_value_summary, contender_single_value_summary, unit) %>%
+    arrange(language, suite, name, params) %>%
+    gt(rowname_col = "language", groupname_col = "suite") %>%
+    fmt_markdown(columns = "name") %>%
+    fmt_percent(columns = "analysis_pairwise_percent_change", scale_values = FALSE, decimals = 2) %>%
+    fmt_number(columns = ends_with("single_value_summary"), decimals = 0) %>%
+    cols_label(
+      language = "Language",
+      name = "Benchmark",
+      suite = "Suite",
+      params = "Params",
+      baseline_single_value_summary = "Baseline result",
+      contender_single_value_summary = "Contender result",
+      analysis_pairwise_percent_change = "Percent Change",
+    ) %>%
+    tab_spanner(columns = c("baseline_single_value_summary", "contender_single_value_summary", "unit"), label= "Results") %>%
+    tab_spanner(columns = starts_with("analysis_"), label= "Analysis") %>%
+    opt_table_font(font = google_font("Roboto Mono")) %>%
+    tab_options(table.font.size = "10px") %>%
+    tab_footnote(
+      footnote = "MB/s = megabytes per second; ns = nanoseconds; i/s = iterations per second",
+      locations = cells_body(columns = "unit")
+    )
+}

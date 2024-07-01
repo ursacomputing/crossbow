@@ -31,7 +31,7 @@ baseline_git_commit <- Sys.getenv("BASELINE_GIT_COMMIT")
 contender_git_commit <-  Sys.getenv("CONTENDER_GIT_COMMIT")
 # baseline_git_commit <- '5bf86ab4d9e9bc5bb7e1c6e65a55d9f1723597bf'
 # contender_git_commit <-  'b7d2f7ffca66c868bd2fce5b3749c6caa002a7f0'
-hardware_name <- c("ursa-i9-9960x", "ursa-thinkcentre-m75q")
+hardware_name  <- c("ec2-m5-4xlarge-us-east-2", "ec2-c6a-4xlarge-us-east-2")
 
 library(dplyr)
 library(ggplot2)
@@ -97,7 +97,9 @@ if (!nzchar(baseline_git_commit) | !nzchar(contender_git_commit)) {
 #| results: 'asis'
 #| cache: !expr '!is_gha()'
 
-run_comp <- find_runs(baseline_git_commit, contender_git_commit, hardware_name)
+run_comp <- find_runs(baseline_git_commit, contender_git_commit, hardware_name) |>
+    filter(id != "5200ba71e40e462da1cdbb7ff57fcc50") ## old m5 that we don't want for comparisons
+  
 
 if (length(run_comp) == 0) {
   knit_exit("No runs found for the given commits. Please check that the commits are correct and that the benchmark runs have completed.")
@@ -105,18 +107,19 @@ if (length(run_comp) == 0) {
 
 # Compare the baseline to the contender for 
 # macrobenchmarks
-ursa_i9_bm <- run_comp %>%
-  filter(hardware.name == "ursa-i9-9960x") %>%
+m5_bm <- run_comp %>%
+  filter(hardware.name == "ec2-m5-4xlarge-us-east-2") %>%
   compare_baseline_to_contender()
 
-macro_bm_df <- ursa_i9_bm %>%
+macro_bm_df <- m5_bm %>%
   filter(baseline.language %in% c("Python", "R")) 
 
 # microbenchmarks
 micro_bm_df <- run_comp %>%
-  filter(hardware.name == "ursa-thinkcentre-m75q") %>%
+  filter(hardware.name == "ec2-c6a-4xlarge-us-east-2") %>%
   compare_baseline_to_contender() %>% 
-  bind_rows(ursa_i9_bm %>% filter(baseline.language %in% "JavaScript"))
+  filter(baseline.language %in% c("C++", "JavaScript", "Java")) |> 
+  bind_rows(m5_bm %>% filter(baseline.language %in% "JavaScript"))
 ```
 
 
@@ -359,37 +362,35 @@ micro_bm_proced <- micro_bm_df %>%
   group_modify(~ tidy_compare(.x, .y)) %>% 
   ungroup() %>% 
   filter(!is.na(name)) %>% 
-  filter(!is.na(analysis.lookback_z_score.regression_indicated)) %>% ## indicator of some empty data
+  # filter(!is.na(analysis.lookback_z_score.regression_indicated)) %>% ## indicator of some empty data
   ## this will enable the yaxis to be populated with names when params is NA. params is preferable because it is more specific
   mutate(params = ifelse(is.na(params), baseline.case_permutation, params)) %>% 
   rowwise() %>%
   mutate(params = paste(strwrap(params, 10), collapse="\n")) %>% 
   clean_names() %>% 
-  select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated, change, difference, pn_lab, analysis_lookback_z_score_z_score, analysis_lookback_z_score_z_threshold, analysis_pairwise_percent_change, baseline_single_value_summary, contender_single_value_summary, cb_url, unit)
+  select(language, baseline_benchmark_name, name, params, suite, analysis_pairwise_improvement_indicated, analysis_pairwise_regression_indicated, change, difference, pn_lab, analysis_pairwise_percent_change, baseline_single_value_summary, contender_single_value_summary, cb_url, unit)
 ```
 
 There are currently `r nrow(micro_bm_proced)` microbenchmarks in the Arrow benchmarks. The following comparisons are also available to be viewed in the [Conbench UI](`r generate_compare_url(micro_bm_df)`). 
 
 ```{r table-micro-bm-summary}
-threshold <- unique(micro_bm_proced$analysis_lookback_z_score_z_threshold)
-threshold <- threshold[!is.na(threshold)]
 micro_bm_proced %>% 
   count(language, analysis_pairwise_regression_indicated, analysis_pairwise_improvement_indicated) %>% 
   mutate(col_var = case_when(
     analysis_pairwise_regression_indicated == TRUE ~ "Regressions",
     analysis_pairwise_improvement_indicated == TRUE ~ "Improvements",
+    is.na(analysis_pairwise_regression_indicated) | is.na(analysis_pairwise_improvement_indicated) ~ "No comparison",
     TRUE ~ "Stable"
   )) %>%
   select(-all_of(starts_with("analysis_pairwise"))) %>% 
   pivot_wider(names_from = col_var, values_from = n) %>% 
   rowwise() %>%
-  mutate(Total = sum(c_across(c(Stable, Improvements, Regressions)))) %>%
-  mutate(`z-score threshold` = threshold, .after = language) %>% 
+  mutate(Total = sum(c_across(c(Stable, Improvements, Regressions)), na.rm = TRUE)) %>%
   gt() %>% 
   cols_label(language = "Language") %>% 
   tab_spanner(
     label = "Number of microbenchmarks",
-    columns = c(Stable, Improvements, Regressions, Total)
+    columns = c(Stable, Improvements, Regressions, `No comparison`, Total)
   ) %>%
   opt_table_font(font = google_font("Roboto Mono"))
 ```
@@ -401,7 +402,7 @@ Because of the large number of benchmarks, the top 20 benchmark results that dev
 ## Largest 20 regressions between baseline and contender
 
 ```{r table-top-zscores-negative}
-top_zscore_table(micro_bm_proced, direction = "regression")
+top_perf_table(micro_bm_proced, direction = "regression")
 ```
 
 
@@ -412,31 +413,11 @@ top_zscore_table(micro_bm_proced, direction = "regression")
 ## Largest 20 improvements between baseline and contender
 
 ```{r table-top-zscores-positive}
-top_zscore_table(micro_bm_proced, direction = "improvement")
+top_perf_table(micro_bm_proced, direction = "improvement")
 ```
 
 :::
 
-## z-score distribution
-
-Plotting the distribution of zscores for all microbenchmark results will help identify any systematic differences between the baseline and contender. The shape of the distribution of z-scores provides a sense of the overall performance of the contender relative to the baseline. Narrow distributions centered around 0 indicate that the contender is performing similarly to the baseline. Wider distributions indicate that the contender is performing differently than the baseline with left skewing indicating regressions and right skewing indicating improvements.
- 
-
-```{ojs}
-Plot.plot({
-  y: {grid: true},
-  x: {
-    label: "z-score"
-  },
-  color: {legend: false},
-  width: 1000,
-  height: 400,
-  marks: [
-    Plot.rectY(microBmProced, Plot.binX({y: "count"}, {x: "analysis_lookback_z_score_z_score", fill: "grey", tip: true})),
-    Plot.ruleY([0])
-  ]
-})
-```
 
 ```{r ojs-defn}
 ojs_define(ojs_micro_bm_proced = micro_bm_proced)
@@ -452,7 +433,7 @@ microBmProced = aq.from(transpose(ojs_micro_bm_proced))
 
 ## Microbenchmark explorer {#micro-bm-explorer}
 
-This microbenchmarks explorer allows you to filter the microbenchmark results by language, suite, and benchmark name and toggle regressions and improvements based on a threshold level of `r threshold` z-scores. Languages, suite and benchmark name need to be selected to show a benchmark plot. Additional benchmark parameters are displayed on the vertical axis resulting in each bar representing a case permutation. If a benchmark does not have additional parameters, the full case permutation string is displayed. Each bar can be clicked to open the Conbench UI page for that benchmark providing additional history and metadata for that case permutation.
+This microbenchmarks explorer allows you to filter the microbenchmark results by language, suite, and benchmark name and toggle regressions and improvements based on a percent change between the baseline and contender |> . Languages, suite and benchmark name need to be selected to show a benchmark plot. Additional benchmark parameters are displayed on the vertical axis resulting in each bar representing a case permutation. If a benchmark does not have additional parameters, the full case permutation string is displayed. Each bar can be clicked to open the Conbench UI page for that benchmark providing additional history and metadata for that case permutation.
 
 ```{ojs filter-micro-bm}
 // Top level: are there regressions/improvements?
