@@ -1,0 +1,75 @@
+
+jobs:
+- job: linux
+  pool:
+    vmImage: ubuntu-latest
+  timeoutInMinutes: 360
+
+  variables:
+    CONFIG: linux_64_cuda_compiler_versionNone
+    R_CONFIG: 
+    ARROW_VERSION: 17.0.0.dev434
+    UPLOAD_PACKAGES: False
+
+  steps:
+  - script: |
+         sudo mkdir -p /opt/empty_dir || true
+         for d in \
+                  /opt/ghc \
+                  /opt/hostedtoolcache \
+                  /usr/lib/jvm \
+                  /usr/local/.ghcup \
+                  /usr/local/lib/android \
+                  /usr/local/share/powershell \
+                  /usr/share/dotnet \
+                  /usr/share/swift \
+                  ; do
+           sudo rsync --stats -a --delete /opt/empty_dir/ $d || true
+         done
+         sudo apt-get purge -y -f firefox \
+                                  google-chrome-stable \
+                                  microsoft-edge-stable
+         sudo apt-get autoremove -y >& /dev/null
+         sudo apt-get autoclean -y >& /dev/null
+         sudo docker image prune --all --force
+         df -h
+    displayName: Manage disk space
+
+  # configure qemu binfmt-misc running.  This allows us to run docker containers
+  # embedded qemu-static
+  - script: |
+      docker run --rm --privileged multiarch/qemu-user-static:register --reset --credential yes
+      ls /proc/sys/fs/binfmt_misc/
+    displayName: Configure binfmt_misc
+    condition: not(startsWith(variables['CONFIG'], 'linux_64'))
+
+  - script: |
+      git clone --no-checkout --branch maint-17.0.0 https://github.com/apache/arrow.git arrow
+      git -C arrow checkout 12be56994b087c71980b8e5d3a962e2d53c79fd2
+      git -C arrow submodule update --init --recursive
+    displayName: Clone arrow
+
+
+  - script: |
+      mkdir build_artifacts
+      CI=azure arrow/dev/tasks/conda-recipes/run_docker_build.sh $(pwd)/build_artifacts
+    displayName: Run docker build
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.8'
+  - script: pip install -e arrow/dev/archery[crossbow-upload]
+    displayName: Install Crossbow
+  - bash: |
+      archery crossbow \
+        --queue-path $(pwd) \
+        --queue-remote https://github.com/ursacomputing/crossbow.git \
+        upload-artifacts \
+        --sha maint-17.0.0-nightly-packaging-2-azure-conda-linux-x64-cpu-py3 \
+        --tag maint-17.0.0-nightly-packaging-2-azure-conda-linux-x64-cpu-py3 \
+        "build_artifacts/*/*.conda"
+    env:
+      CROSSBOW_GITHUB_TOKEN: $(CROSSBOW_GITHUB_TOKEN)
+    displayName: Upload packages as a GitHub release
+
+  
