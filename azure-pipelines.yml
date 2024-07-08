@@ -1,0 +1,101 @@
+
+jobs:
+- job: win
+  pool:
+    vmImage: windows-2022
+  timeoutInMinutes: 360
+  variables:
+    CONFIG: win_64_cuda_compiler_versionNone
+    R_CONFIG: 
+    ARROW_VERSION: 17.0.0.dev454
+    CONDA_BLD_PATH: D:\\bld\\
+    UPLOAD_PACKAGES: False
+
+  steps:
+    - task: PythonScript@0
+      displayName: 'Download Miniforge'
+      inputs:
+        scriptSource: inline
+        script: |
+          import urllib.request
+          url = 'https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Windows-x86_64.exe'
+          path = r"$(Build.ArtifactStagingDirectory)/Miniforge.exe"
+          urllib.request.urlretrieve(url, path)
+
+    - script: |
+        start /wait "" %BUILD_ARTIFACTSTAGINGDIRECTORY%\Miniforge.exe /InstallationType=JustMe /RegisterPython=0 /S /D=C:\Miniforge
+      displayName: Install Miniforge
+
+    - powershell: Write-Host "##vso[task.prependpath]C:\Miniforge\Scripts"
+      displayName: Add conda to PATH
+
+    - script: |
+        call activate base
+        mamba.exe install 'python=3.10' conda-build conda pip boa 'conda-forge-ci-setup=3' -c conda-forge --strict-channel-priority --yes
+      displayName: Install conda-build
+
+    - script: set PYTHONUNBUFFERED=1
+      displayName: Set PYTHONUNBUFFERED
+
+    - script: |
+        git clone --no-checkout --branch main https://github.com/apache/arrow arrow
+        git -C arrow checkout 38d37b46d1b9bd49c134f5a56f9fb1e9ddca7b3d
+        git -C arrow submodule update --init --recursive
+      displayName: Clone arrow
+
+
+    # Configure the VM
+    - script: |
+        call activate base
+        setup_conda_rc .\ .\ .\.ci_support\%CONFIG%.yaml
+      workingDirectory: arrow\dev\tasks\conda-recipes
+      displayName: conda-forge CI setup
+
+    # Configure the VM.
+    - script: |
+        set "CI=azure"
+        call activate base
+        run_conda_forge_build_setup
+      displayName: conda-forge build setup
+      workingDirectory: arrow\dev\tasks\conda-recipes
+
+    - script: |
+        call activate base
+        conda.exe mambabuild arrow-cpp parquet-cpp -m .ci_support\%CONFIG%.yaml
+      displayName: Build Arrow recipe
+      workingDirectory: arrow\dev\tasks\conda-recipes
+      env:
+        PYTHONUNBUFFERED: 1
+
+    - script: |
+        call activate base
+        conda.exe mambabuild r-arrow -m .ci_support\r\%R_CONFIG%.yaml
+      displayName: Build R-Arrow recipe
+      workingDirectory: arrow\dev\tasks\conda-recipes
+      env:
+        PYTHONUNBUFFERED: 1
+      condition: contains(variables['R_CONFIG'], 'win')
+
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.8'
+    - script: pip install -e arrow/dev/archery[crossbow-upload]
+      displayName: Install Crossbow
+    - bash: |
+        archery crossbow \
+          --queue-path $(pwd) \
+          --queue-remote https://github.com/ursacomputing/crossbow \
+          upload-artifacts \
+          --sha nightly-packaging-2024-07-08-0-azure-conda-win-x64-cpu-py3 \
+          --tag nightly-packaging-2024-07-08-0-azure-conda-win-x64-cpu-py3 \
+          "D:\bld\win-64\*.conda"
+      env:
+        CROSSBOW_GITHUB_TOKEN: $(CROSSBOW_GITHUB_TOKEN)
+      displayName: Upload packages as a GitHub release
+
+    - bash: |
+        conda create -y -n azure_upload_anaconda -c conda-forge anaconda-client
+        source activate azure_upload_anaconda
+        anaconda -t $(CROSSBOW_ANACONDA_TOKEN) upload --force D:\bld\win-64\*.conda
+      displayName: Upload packages to Anaconda
+
