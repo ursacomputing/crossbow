@@ -1,0 +1,225 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# NOTE: must set "Crossbow" as name to have the badge links working in the
+# github comment reports!
+name: Crossbow
+on:
+  push:
+    branches:
+      - "*-github-*"
+
+env:
+  ARCHERY_DEBUG: 1
+
+
+jobs:
+  build:
+    name: "Build wheel for manylinux 2-28"
+    runs-on: ubuntu-latest
+    env:
+      # archery uses these environment variables
+      ARCH: amd64
+      PYTHON: "3.8"
+
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: arrow
+          repository: apache/arrow
+          ref: 493f08c0e4baa7e9f229965ced4c4e988857f76e
+          submodules: recursive
+
+      - name: Set up Python by actions/setup-python
+        if: |
+          !(runner.os == 'Linux' && runner.arch != 'X64')
+        uses: actions/setup-python@v4
+        with:
+          cache: 'pip'
+          python-version: 3.12
+      - name: Set up Python by apt
+        if: runner.os == 'Linux' && runner.arch != 'X64'
+        run: |
+          sudo apt update
+          sudo apt-get install -y python3-pip
+          pip install -U pip
+          echo "$HOME/.local/bin" >>"$GITHUB_PATH"
+      - name: Install Archery
+        shell: bash
+        run: pip install -e arrow/dev/archery[all]
+
+      - name: Login to Dockerhub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+
+      - name: Build wheel
+        shell: bash
+        run: archery docker run -e SETUPTOOLS_SCM_PRETEND_VERSION=18.0.0.dev131 python-wheel-manylinux-2-28
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheel
+          path: arrow/python/repaired_wheels/*.whl
+
+      # TODO(kszucs): auditwheel show
+      - name: Test wheel
+        shell: bash
+        run: |
+          archery docker run python-wheel-manylinux-test-imports
+          archery docker run python-wheel-manylinux-test-unittests
+
+      - name: Test wheel on AlmaLinux 8
+        shell: bash
+        if: |
+          '3.8' == '3.8'
+        env:
+          ALMALINUX: "8"
+        run: |
+          archery docker run \
+            -e ARROW_GANDIVA=OFF \
+            -e TEST_DEFAULT=0 \
+            -e TEST_PYARROW_VERSION=18.0.0.dev131 \
+            -e TEST_PYTHON_VERSIONS=3.8 \
+            -e TEST_WHEEL_PLATFORM_TAGS=manylinux_2_28_x86_64 \
+            -e TEST_WHEELS=1 \
+            almalinux-verify-rc
+
+      - name: Test wheel on Ubuntu 20.04
+        shell: bash
+        if: |
+          '3.8' == '3.8'
+        env:
+          UBUNTU: "20.04"
+        run: |
+          archery docker run \
+            -e TEST_DEFAULT=0 \
+            -e TEST_PYARROW_VERSION=18.0.0.dev131 \
+            -e TEST_PYTHON_VERSIONS=3.8 \
+            -e TEST_WHEEL_PLATFORM_TAGS=manylinux_2_28_x86_64 \
+            -e TEST_WHEELS=1 \
+            ubuntu-verify-rc
+
+      - name: Test wheel on Ubuntu 22.04
+        shell: bash
+        if: |
+          '3.8' == '3.10'
+        env:
+          UBUNTU: "22.04"
+        run: |
+          archery docker run \
+            -e TEST_DEFAULT=0 \
+            -e TEST_PYARROW_VERSION=18.0.0.dev131 \
+            -e TEST_PYTHON_VERSIONS=3.8 \
+            -e TEST_WHEEL_PLATFORM_TAGS=manylinux_2_28_x86_64 \
+            -e TEST_WHEELS=1 \
+            ubuntu-verify-rc
+
+      - name: Set up Python by actions/setup-python
+        if: |
+          !(runner.os == 'Linux' && runner.arch != 'X64')
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Set up Python by apt
+        if: runner.os == 'Linux' && runner.arch != 'X64'
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            libgit2-dev \
+            libpython3-dev \
+            python3-pip
+          sudo python3 -m pip install --upgrade pip
+      - name: Checkout Crossbow
+        uses: actions/checkout@v4
+        with:
+          path: crossbow
+          ref: nightly-packaging-2024-08-10-0
+      - name: Setup Crossbow
+        shell: bash
+        run: |
+          python3 -m pip install -e arrow/dev/archery[crossbow]
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Upload artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            upload-artifacts \
+            --sha nightly-packaging-2024-08-10-0-github-wheel-manylinux-2-28-cp38-amd64 \
+            --tag nightly-packaging-2024-08-10-0-github-wheel-manylinux-2-28-cp38-amd64 \
+            "arrow/python/repaired_wheels/*.whl"
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Verify uploaded artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            status \
+            --task-filter 'wheel-manylinux-2-28-cp38-amd64' \
+            --no-fetch \
+            --validate \
+            nightly-packaging-2024-08-10-0
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Ruby by apt
+        if: runner.os == 'Linux' && runner.arch != 'X64'
+        run: |
+          sudo apt update
+          sudo apt install -y ruby-full
+      - name: Set up Ruby by GitHub Actions
+        if: runner.arch == 'X64' && runner.os != 'macOS'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "ruby"
+      - name: Install gemfury client on ARM self-hosted
+        if: runner.arch != 'X64'
+        run: |
+          # GH-36692: Pin gemfury due to wrong faraday dependency declaration.
+          gem install --user-install gemfury -v 0.12.0
+          ruby -r rubygems -e 'puts("#{Gem.user_dir}/bin")' >> $GITHUB_PATH
+      - name: Install gemfury client
+        if: runner.arch == 'X64'
+        run: |
+          # GH-36692: Pin gemfury due to wrong faraday dependency declaration.
+          gem install gemfury -v 0.12.0
+      - name: Upload package to Gemfury
+        shell: bash
+        run: |
+          fury push \
+            --api-token=${CROSSBOW_GEMFURY_TOKEN} \
+            --as=${CROSSBOW_GEMFURY_ORG} \
+            arrow/python/repaired_wheels/*.whl
+        env:
+          CROSSBOW_GEMFURY_TOKEN: ${{ secrets.CROSSBOW_GEMFURY_TOKEN }}
+          CROSSBOW_GEMFURY_ORG: ${{ secrets.CROSSBOW_GEMFURY_ORG }}
+
+
+      - name: Push Docker Image
+        shell: bash
+        run: |
+          archery docker push python-wheel-manylinux-2-28
+          archery docker push python-wheel-manylinux-test-unittests
