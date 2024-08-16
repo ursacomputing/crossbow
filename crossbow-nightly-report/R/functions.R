@@ -40,8 +40,9 @@ arrow_build_table <- function(nightly_data, type, task) {
     filter(task_name == task)
 
   ## filter for when the most recent run is a failure 
+  day_window <- today() - 2
   ordered_only_recent_fails <- type_task_data %>%
-    filter(task_name %in% task_name[nightly_date == max(nightly_date) & task_status != "success"]) %>%
+    filter(task_name %in% task_name[nightly_date == day_window & task_status != "success"]) %>%
     arrange(desc(nightly_date)) %>%
     mutate(task_status = case_when(
       task_status == "success" ~ "pass",
@@ -81,7 +82,6 @@ arrow_build_table <- function(nightly_data, type, task) {
       TRUE ~ paste0(fails_plus_one, " days ago")
     )) %>%
     filter(fails_plus_one <= 9 | grepl("failure|build", fail_label))
-
 
   ## inner_join to ordered data
   df <- ordered_only_recent_fails %>%
