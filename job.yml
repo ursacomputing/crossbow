@@ -1,0 +1,1103 @@
+!Job
+target: !Target
+  head: 3a6135b66d511296281c1389063bff060a8b83e9
+  email: unknown
+  branch: main
+  remote: https://github.com/apache/arrow
+  github_repo: apache/arrow
+  version: 18.0.0.dev245
+  r_version: 17.0.0.100000245
+  no_rc_version: 18.0.0.dev245
+  no_rc_r_version: 17.0.0.100000245
+  no_rc_semver_version: 18.0.0-dev245
+  no_rc_snapshot_version: 18.0.0-SNAPSHOT
+tasks:
+  test-conda-python-3.12-cpython-debug: !Task
+    name: test-conda-python-3.12-cpython-debug
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: 3.12
+      image: conda-python-cpython-debug
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.12-cpython-debug
+    commit: d85b8da0546023a402dcf9e8a3ed30c9a8aa4a8c
+  example-python-minimal-build-fedora-conda: !Task
+    name: example-python-minimal-build-fedora-conda
+    ci: github
+    template: python-minimal-build/github.linux.yml
+    artifacts: []
+    params:
+      type: minimal_build
+      image: minimal-fedora-conda
+    branch: nightly-tests-2024-09-03-0-github-example-python-minimal-build-fedora-conda
+    commit: eac9142c4998e4beafeecadbdcc3898abb5912ba
+  test-r-extra-packages: !Task
+    name: test-r-extra-packages
+    ci: github
+    template: r/github.linux.extra.packages.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-r-extra-packages
+    commit: 06f9527c5d3685db0b8f645601ec39de95f1b555
+  test-conda-python-3.11-hypothesis: !Task
+    name: test-conda-python-3.11-hypothesis
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: 3.11
+        HYPOTHESIS_PROFILE: ci
+        PYARROW_TEST_HYPOTHESIS: ON
+        # limit to execute hypothesis tests only
+        PYTEST_ARGS: -m hypothesis -W error
+      image: conda-python-pandas
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.11-hypothesis
+    commit: 32b47ee8adbcc3113445399b67bc65801d0c4ae1
+  test-debian-12-go-1.23: !Task
+    name: test-debian-12-go-1.23
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        DEBIAN: 12
+        GO: '1.23'
+        STATICCHECK: latest
+      image: debian-go
+
+  # be sure to update binary-task.rb when upgrading Debian
+    branch: nightly-tests-2024-09-03-0-github-test-debian-12-go-1.23
+    commit: 2acf13a4bbadb61840140032a6c86badaa724c19
+  test-r-rhub-debian-gcc-devel-lto-latest: !Task
+    name: test-r-rhub-debian-gcc-devel-lto-latest
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rhub
+      r_image: gcc13
+      r_tag: latest
+      flags: -e INSTALL_ARGS=--use-LTO
+
+  # This one has -flto=auto
+    branch: nightly-tests-2024-09-03-0-azure-test-r-rhub-debian-gcc-devel-lto-latest
+    commit: 6122680b2e0d45dab5a091cac9f9a58dcc3055c5
+  example-cpp-minimal-build-static: !Task
+    name: example-cpp-minimal-build-static
+    ci: github
+    template: cpp-examples/github.linux.yml
+    artifacts: []
+    params:
+      type: minimal_build
+      run: static
+    branch: nightly-tests-2024-09-03-0-github-example-cpp-minimal-build-static
+    commit: 7edfb5c518af0eb65595f1553a602814594c893f
+  test-conda-python-3.11-pandas-upstream_devel-numpy-nightly: !Task
+    name: test-conda-python-3.11-pandas-upstream_devel-numpy-nightly
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.11'
+        PANDAS: upstream_devel
+        NUMPY: nightly
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+
+    branch: 
+      nightly-tests-2024-09-03-0-github-test-conda-python-3.11-pandas-upstream_devel-numpy-nightly
+    commit: 857c69827b0fd4c32e3afbf72e99b32f44e6453d
+  test-r-depsource-system: !Task
+    name: test-r-depsource-system
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      flags: -e ARROW_DEPENDENCY_SOURCE=SYSTEM -e ARROW_GCS=OFF -e xsimd_SOURCE=BUNDLED
+      image: ubuntu-r-only-r
+
+    branch: nightly-tests-2024-09-03-0-github-test-r-depsource-system
+    commit: 3848f4c998fab9ea646eedf7adf310639bf94c55
+  test-r-depsource-bundled: !Task
+    name: test-r-depsource-bundled
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rocker
+      r_image: r-ver
+      r_tag: latest
+      flags: -e ARROW_DEPENDENCY_SOURCE=BUNDLED
+
+    branch: nightly-tests-2024-09-03-0-azure-test-r-depsource-bundled
+    commit: c00c1feb120650ab285a4670d7188558ff03b1b9
+  test-r-linux-as-cran: !Task
+    name: test-r-linux-as-cran
+    ci: github
+    template: r/github.linux.cran.yml
+    artifacts: []
+    params:
+      MATRIX: ${{ matrix.r_image }}
+
+    branch: nightly-tests-2024-09-03-0-github-test-r-linux-as-cran
+    commit: 89d5ec4950ce49595ada3eb1ef56093de32102ce
+  test-conda-python-3.9: !Task
+    name: test-conda-python-3.9
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.9'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.9
+    commit: 0e0c600a86676dd575b531a693fab9a7ba9d6ffa
+  test-r-linux-rchk: !Task
+    name: test-r-linux-rchk
+    ci: github
+    template: r/github.linux.rchk.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-r-linux-rchk
+    commit: 3f3e745f5a0d6976395609a6fc7e112c4266a82a
+  test-r-macos-as-cran: !Task
+    name: test-r-macos-as-cran
+    ci: github
+    template: r/github.macos.cran.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-r-macos-as-cran
+    commit: 083442de46ac568a001399022255462b4aa6fa76
+  test-debian-12-go-1.22: !Task
+    name: test-debian-12-go-1.22
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        DEBIAN: 12
+        GO: '1.22'
+        STATICCHECK: v0.5.1
+      image: debian-go
+    branch: nightly-tests-2024-09-03-0-github-test-debian-12-go-1.22
+    commit: c54e50fd5ee19d457367c1a51dda8cbc07ecc5cf
+  test-conda-cpp-valgrind: !Task
+    name: test-conda-cpp-valgrind
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      image: conda-cpp-valgrind
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-cpp-valgrind
+    commit: 6a6367496bdea3fa4361a799f5a548059c1ca16a
+  test-r-clang-sanitizer: !Task
+    name: test-r-clang-sanitizer
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        R_PRUNE_DEPS: true
+      image: r-clang-sanitizer
+
+    branch: nightly-tests-2024-09-03-0-github-test-r-clang-sanitizer
+    commit: dcc413ba0546d4cc412cabca39774e12f9f96686
+  test-ubuntu-24.04-cpp-gcc-14: !Task
+    name: test-ubuntu-24.04-cpp-gcc-14
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        CLANG_TOOLS: 15
+        GCC_VERSION: 14
+        LLVM: 15
+        UBUNTU: 24.04
+      # rapidjson 1.1.0 has an error caught by gcc 14.
+      # https://github.com/Tencent/rapidjson/issues/718
+      flags: -e CC=gcc-14 -e CXX=g++-14 -e RapidJSON_SOURCE=BUNDLED
+      image: ubuntu-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-24.04-cpp-gcc-14
+    commit: f383f009e49d9ec0c799c4111c4b142d73f092d5
+  test-r-offline-minimal: !Task
+    name: test-r-offline-minimal
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rocker
+      r_image: r-ver
+      r_tag: latest
+      flags: -e ARROW_OFFLINE_BUILD=true
+
+    branch: nightly-tests-2024-09-03-0-azure-test-r-offline-minimal
+    commit: ea1daea796483c7b18eb36407112780774dabdb9
+  test-cuda-cpp: !Task
+    name: test-cuda-cpp
+    ci: github
+    template: docker-tests/github.cuda.yml
+    artifacts: []
+    params:
+      image: ubuntu-cuda-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-cuda-cpp
+    commit: c93c93b5d96542a3f466536554e163da2d5d9295
+  test-ubuntu-20.04-cpp-thread-sanitizer: !Task
+    name: test-ubuntu-20.04-cpp-thread-sanitizer
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        # clang-tools and llvm version need to be synchronized so as
+        # to have the right llvm-symbolizer version
+        CLANG_TOOLS: 11
+        LLVM: 11
+        UBUNTU: 20.04
+      image: ubuntu-cpp-thread-sanitizer
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-20.04-cpp-thread-sanitizer
+    commit: 65b9eb3a0f255048f3e38e1e8f71589f40ffb629
+  test-conda-python-3.11-dask-upstream_devel: !Task
+    name: test-conda-python-3.11-dask-upstream_devel
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: 3.11
+        DASK: upstream_devel
+      # use the latest dask release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-dask
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.11-dask-upstream_devel
+    commit: 4c97c617e62edc76c2c9ab91674fc1645b83be19
+  test-conda-python-3.10-pandas-latest-numpy-1.26: !Task
+    name: test-conda-python-3.10-pandas-latest-numpy-1.26
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        PANDAS: latest
+        NUMPY: '1.26'
+        # ensure we have at least one build with parquet encryption disabled
+        PARQUET_REQUIRE_ENCRYPTION: OFF
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+    branch: 
+      nightly-tests-2024-09-03-0-github-test-conda-python-3.10-pandas-latest-numpy-1.26
+    commit: 8c4e2dddd26e617776871783c30de88de9afbbdc
+  test-r-linux-valgrind: !Task
+    name: test-r-linux-valgrind
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        ARROW_R_DEV: 'TRUE'
+      image: ubuntu-r-valgrind
+      timeout: 300 # 5 hours
+
+    branch: nightly-tests-2024-09-03-0-github-test-r-linux-valgrind
+    commit: 3c71121abe476c3af0ddc82ae50a2765ea0e98fd
+  test-r-rstudio-r-base-4.1-opensuse155: !Task
+    name: test-r-rstudio-r-base-4.1-opensuse155
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rstudio
+      r_image: r-base
+      r_tag: 4.1-opensuse155
+
+  # This is with R built with --enable-lto
+  # CRAN also does R CMD INSTALL --use-LTO
+  # which overrides the UseLTO field in r/DESCRIPTION
+    branch: nightly-tests-2024-09-03-0-azure-test-r-rstudio-r-base-4.1-opensuse155
+    commit: 6df42ccfa558150f79a7e077f27c66ed5acb984a
+  test-skyhook-integration: !Task
+    name: test-skyhook-integration
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 20.04
+      flags: >-
+        -e ARROW_AZURE=OFF
+        -e ARROW_GANDIVA=OFF
+        -e ARROW_GCS=OFF
+        -e ARROW_S3=OFF
+        -e ARROW_SKYHOOK=ON
+      image: ubuntu-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-skyhook-integration
+    commit: a782395acf72354ab0b385f37a8aa7d7907dc4b5
+  test-r-dev-duckdb: !Task
+    name: test-r-dev-duckdb
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        R_DUCKDB_DEV: true
+      image: ubuntu-r-only-r
+
+    branch: nightly-tests-2024-09-03-0-github-test-r-dev-duckdb
+    commit: 4cfccb8e4dcee553b15a7e58006c161a93733f60
+  test-r-install-local-minsizerel: !Task
+    name: test-r-install-local-minsizerel
+    ci: github
+    template: r/github.macos-linux.local.yml
+    artifacts: []
+    params:
+      env:
+        CMAKE_BUILD_TYPE: MinSizeRel
+
+    branch: nightly-tests-2024-09-03-0-github-test-r-install-local-minsizerel
+    commit: 01ed76418a7c0b4f520123557420c607c8e69fa8
+  test-conda-python-3.11: !Task
+    name: test-conda-python-3.11
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.11'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.11
+    commit: a615df480784e1d2dc710bcb19ddeeea589a6496
+  test-conda-python-3.10-pandas-latest-numpy-latest: !Task
+    name: test-conda-python-3.10-pandas-latest-numpy-latest
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        PANDAS: latest
+        NUMPY: latest
+        # ensure we have at least one build with parquet encryption disabled
+        PARQUET_REQUIRE_ENCRYPTION: OFF
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+    branch: 
+      nightly-tests-2024-09-03-0-github-test-conda-python-3.10-pandas-latest-numpy-latest
+    commit: 62b0d021b842544618592250cb48fac7fed4a41b
+  test-conda-python-3.10-pandas-nightly-numpy-nightly: !Task
+    name: test-conda-python-3.10-pandas-nightly-numpy-nightly
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        PANDAS: nightly
+        NUMPY: nightly
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+    branch: 
+      nightly-tests-2024-09-03-0-github-test-conda-python-3.10-pandas-nightly-numpy-nightly
+    commit: d64288ca6a874997e0039d7c970631ec657b76eb
+  test-r-versions: !Task
+    name: test-r-versions
+    ci: github
+    template: r/github.linux.versions.yml
+    artifacts: []
+    params:
+      MATRIX: ${{ matrix.r_version }}
+
+    branch: nightly-tests-2024-09-03-0-github-test-r-versions
+    commit: 333ebb2d71bc4bb6928ec8181d3569cb55cf46e0
+  test-r-arrow-backwards-compatibility: !Task
+    name: test-r-arrow-backwards-compatibility
+    ci: github
+    template: r/github.linux.arrow.version.back.compat.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-r-arrow-backwards-compatibility
+    commit: 742e5c30232964d5c5cd9a27c4eb475e183abd4d
+  test-r-rstudio-r-base-4.2-focal: !Task
+    name: test-r-rstudio-r-base-4.2-focal
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rstudio
+      r_image: r-base
+      r_tag: 4.2-focal
+    branch: nightly-tests-2024-09-03-0-azure-test-r-rstudio-r-base-4.2-focal
+    commit: 0ff751d25755e66fa2175ac4e9cd77f18105e109
+  test-ubuntu-22.04-cpp-emscripten: !Task
+    name: test-ubuntu-22.04-cpp-emscripten
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: ubuntu-cpp-emscripten
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-22.04-cpp-emscripten
+    commit: efc5b69a0a9ee6ec8e8ecebd4a17f4d0d06b4427
+  test-debian-ruby: !Task
+    name: test-debian-ruby
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: debian-ruby
+    branch: nightly-tests-2024-09-03-0-github-test-debian-ruby
+    commit: 53c4c189bd1c41656a1852ba1595369836b25f7b
+  test-ubuntu-c-glib: !Task
+    name: test-ubuntu-c-glib
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: ubuntu-c-glib
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-c-glib
+    commit: aeb7e6c5d11d54332ecf8bc10f952d715489645b
+  test-conda-python-3.8-pandas-1.0-numpy-1.19: !Task
+    name: test-conda-python-3.8-pandas-1.0-numpy-1.19
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.8'
+        PANDAS: '1.0'
+        NUMPY: '1.19'
+      image: conda-python-pandas
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.8-pandas-1.0-numpy-1.19
+    commit: db5156fc4674528e6861194e9d24fa02a78ddbc3
+  test-fedora-39-python-3: !Task
+    name: test-fedora-39-python-3
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        FEDORA: 39
+      image: fedora-python
+
+    branch: nightly-tests-2024-09-03-0-github-test-fedora-39-python-3
+    commit: 0e0bf88eeac2e52364ff831976b3a54c449a0914
+  test-conda-python-3.10-hdfs-3.2.1: !Task
+    name: test-conda-python-3.10-hdfs-3.2.1
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        HDFS: 3.2.1
+        PYTHON: '3.10'
+      image: conda-python-hdfs
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.10-hdfs-3.2.1
+    commit: dc8ca4777bdb42464e95755a4e8ae875ab2c7925
+  test-ubuntu-20.04-python-3: !Task
+    name: test-ubuntu-20.04-python-3
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 20.04
+      image: ubuntu-python
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-20.04-python-3
+    commit: 73b3355e89f0770427b0ed71fa1dea4534abf514
+  test-conda-python-emscripten: !Task
+    name: test-conda-python-emscripten
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+        PYTHON: 3.12
+      image: conda-python-emscripten
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-emscripten
+    commit: 66cd1ff2052bfcf3ab947f39534f589016e26d8b
+  example-python-minimal-build-ubuntu-venv: !Task
+    name: example-python-minimal-build-ubuntu-venv
+    ci: github
+    template: python-minimal-build/github.linux.yml
+    artifacts: []
+    params:
+      type: minimal_build
+      image: minimal-ubuntu-venv
+
+  ############################# Conda Linux (x64) #############################
+
+    branch: nightly-tests-2024-09-03-0-github-example-python-minimal-build-ubuntu-venv
+    commit: 24e6d5ecd6b79d5af0d9911deb808b3237011644
+  test-conda-python-3.11-spark-master: !Task
+    name: test-conda-python-3.11-spark-master
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.11'
+        SPARK: master
+        TEST_PYARROW_ONLY: 'false'
+        NUMPY: latest
+        JDK: '17'
+      fetch_depth: 0
+      # use the branch-3.0 of spark, so prevent reusing any layers
+      flags: --no-leaf-cache
+      image: conda-python-spark
+      timeout: 90
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.11-spark-master
+    commit: 9aaf0a9577233f15d0432d451a1a0275c4f22d8d
+  test-r-minimal-build: !Task
+    name: test-r-minimal-build
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rocker
+      r_image: r-ver
+      r_tag: latest
+      flags: -e LIBARROW_MINIMAL=TRUE
+
+    branch: nightly-tests-2024-09-03-0-azure-test-r-minimal-build
+    commit: 8409845dd32390bfa2998955737aae29d0e926a4
+  test-debian-c-glib: !Task
+    name: test-debian-c-glib
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: debian-c-glib
+    branch: nightly-tests-2024-09-03-0-github-test-debian-c-glib
+    commit: d2996f7919bcce4e7c4546285e042eb6207078b4
+  test-ubuntu-ruby: !Task
+    name: test-ubuntu-ruby
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: ubuntu-ruby
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-ruby
+    commit: 4ee68fa829f674123255b5920f2ca5dbca75c9c4
+  test-r-devdocs: !Task
+    name: test-r-devdocs
+    ci: github
+    template: r/github.devdocs.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-r-devdocs
+    commit: f652c5d96858e15a37e1e18d0e6841aa4329efb7
+  test-conda-python-3.10: !Task
+    name: test-conda-python-3.10
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.10
+    commit: 3caef44b9e68fbfb54f3f6f76ccd6bdaf771f9ae
+  test-r-rhub-ubuntu-release-latest: !Task
+    name: test-r-rhub-ubuntu-release-latest
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rhub
+      r_image: ubuntu-release
+      r_tag: latest
+    branch: nightly-tests-2024-09-03-0-azure-test-r-rhub-ubuntu-release-latest
+    commit: 171ab2008da410a43d1e61cc13f4f74684aac659
+  test-ubuntu-22.04-cpp: !Task
+    name: test-ubuntu-22.04-cpp
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '22.04'
+      image: ubuntu-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-22.04-cpp
+    commit: 7dfee630e8a9d2cdb4e98304ec318de5050defe6
+  test-r-ubuntu-22.04: !Task
+    name: test-r-ubuntu-22.04
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+        R_PRUNE_DEPS: true
+      image: ubuntu-r-only-r
+
+  # This also has -flto=auto
+    branch: nightly-tests-2024-09-03-0-github-test-r-ubuntu-22.04
+    commit: 55c86fc230b8d1f85a2a813e033930826ebf6bf3
+  test-ubuntu-24.04-cpp: !Task
+    name: test-ubuntu-24.04-cpp
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        CLANG_TOOLS: 15
+        LLVM: 15
+        UBUNTU: 24.04
+      image: ubuntu-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-24.04-cpp
+    commit: 5a55bd92c7a2f89a91b0bfc3c48486b6ababdf48
+  test-build-cpp-fuzz: !Task
+    name: test-build-cpp-fuzz
+    ci: github
+    template: fuzz-tests/github.oss-fuzz.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-build-cpp-fuzz
+    commit: b5d63f3e218ae1cdf9939229aeeb5c70da04e479
+  test-conda-python-3.11-dask-latest: !Task
+    name: test-conda-python-3.11-dask-latest
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: 3.11
+        DASK: latest
+      # use the latest dask release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-dask
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.11-dask-latest
+    commit: 3811b59943537f1be6b11ec1f793dc8dbcc57106
+  example-cpp-tutorial: !Task
+    name: example-cpp-tutorial
+    ci: github
+    template: cpp-examples/github.linux.yml
+    artifacts: []
+    params:
+      type: tutorial_examples
+      run: tutorial
+
+############################## Utility tasks ############################
+    branch: nightly-tests-2024-09-03-0-github-example-cpp-tutorial
+    commit: b177fc534fbfc416cb1db22a0a3de7c4dd2f5f77
+  test-ubuntu-22.04-python-3: !Task
+    name: test-ubuntu-22.04-python-3
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: ubuntu-python
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-22.04-python-3
+    commit: 058bfb3eb1e3f1d2de7f024575717c97cd413a23
+  test-ubuntu-20.04-cpp-minimal-with-formats: !Task
+    name: test-ubuntu-20.04-cpp-minimal-with-formats
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 20.04
+      flags: -e ARROW_CSV=ON -e ARROW_PARQUET=ON
+      image: ubuntu-cpp-minimal
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-20.04-cpp-minimal-with-formats
+    commit: 74760ee368919390df2f30c70ecb63d0e7814584
+  test-conda-python-3.8: !Task
+    name: test-conda-python-3.8
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.8'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.8
+    commit: 6dc8502fd98e3932ecbf87f3193a465afa4f13b6
+  test-r-rocker-r-ver-latest: !Task
+    name: test-r-rocker-r-ver-latest
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rocker
+      r_image: r-ver
+      r_tag: latest
+    branch: nightly-tests-2024-09-03-0-azure-test-r-rocker-r-ver-latest
+    commit: f003bd60ee5c75a5eef7f1a39e21a9af97bc780e
+  test-conda-python-3.9-pandas-latest-numpy-latest: !Task
+    name: test-conda-python-3.9-pandas-latest-numpy-latest
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.9'
+        PANDAS: latest
+        NUMPY: latest
+        # ensure we have at least one build with parquet encryption disabled
+        PARQUET_REQUIRE_ENCRYPTION: OFF
+      # use the latest pandas release, so prevent reusing any cached layers
+      flags: --no-leaf-cache
+      image: conda-python-pandas
+    branch: 
+      nightly-tests-2024-09-03-0-github-test-conda-python-3.9-pandas-latest-numpy-latest
+    commit: 1256e836f3353df3f46b99200be27cbd5375ba0f
+  test-ubuntu-24.04-cpp-gcc-13-bundled: !Task
+    name: test-ubuntu-24.04-cpp-gcc-13-bundled
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 24.04
+        GCC_VERSION: 13
+      image: ubuntu-cpp-bundled
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-24.04-cpp-gcc-13-bundled
+    commit: e7db26e7c55dfd380f057d26def5ca8f0621c475
+  test-alpine-linux-cpp: !Task
+    name: test-alpine-linux-cpp
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: alpine-linux-cpp
+    branch: nightly-tests-2024-09-03-0-github-test-alpine-linux-cpp
+    commit: c2a86a0148b863e408a6b2e3b02431dee0d09ba1
+  test-debian-12-cpp-i386: !Task
+    name: test-debian-12-cpp-i386
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        ARCH: i386
+        DEBIAN: '12'
+      flags: -e ARROW_AZURE=OFF -e ARROW_S3=OFF -e ARROW_GANDIVA=OFF
+      image: debian-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-debian-12-cpp-i386
+    commit: baf34481011289110536b953d3bdf7ddcb22003e
+  test-ubuntu-22.04-cpp-no-threading: !Task
+    name: test-ubuntu-22.04-cpp-no-threading
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      flags: -e ARROW_ENABLE_THREADING=OFF
+      image: ubuntu-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-22.04-cpp-no-threading
+    commit: b4d2a6174d452da8bb65b874085237369dbad57f
+  test-ubuntu-20.04-cpp-bundled: !Task
+    name: test-ubuntu-20.04-cpp-bundled
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 20.04
+      image: ubuntu-cpp-bundled
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-20.04-cpp-bundled
+    commit: e752dd41b6c9760e1577c70d3d8c234bd3a5ae8e
+  test-ubuntu-r-sanitizer: !Task
+    name: test-ubuntu-r-sanitizer
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        R_PRUNE_DEPS: true
+      image: ubuntu-r-sanitizer
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-r-sanitizer
+    commit: 88ef063a17731a71918bf6a7b3d948d5716e63d7
+  test-fedora-39-cpp: !Task
+    name: test-fedora-39-cpp
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        FEDORA: 39
+      image: fedora-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-fedora-39-cpp
+    commit: ae8c3fe0419d868ff48f64cb221f5686d4917d5a
+  test-debian-12-python-3-i386: !Task
+    name: test-debian-12-python-3-i386
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        ARCH: i386
+        DEBIAN: 12
+      flags: -e ARROW_S3=OFF -e ARROW_GANDIVA=OFF
+      image: debian-python
+
+    branch: nightly-tests-2024-09-03-0-github-test-debian-12-python-3-i386
+    commit: 70f588ef970ce7cd926414771dfd115ddfaf1e28
+  test-ubuntu-22.04-cpp-20: !Task
+    name: test-ubuntu-22.04-cpp-20
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      flags: -e CMAKE_CXX_STANDARD=20
+      image: ubuntu-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-22.04-cpp-20
+    commit: ed6fe7b29746f47f465c8fbc97904fffff0d0141
+  test-build-vcpkg-win: !Task
+    name: test-build-vcpkg-win
+    ci: github
+    template: vcpkg-tests/github.windows.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-build-vcpkg-win
+    commit: f57e3794586ff28aeb91bb819f2b6eb99c8709a1
+  test-conda-python-3.10-hdfs-2.9.2: !Task
+    name: test-conda-python-3.10-hdfs-2.9.2
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        HDFS: 2.9.2
+        PYTHON: '3.10'
+      image: conda-python-hdfs
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.10-hdfs-2.9.2
+    commit: 8ed77f7928ab47258fc967f47a5a9d24997adbd5
+  test-r-offline-maximal: !Task
+    name: test-r-offline-maximal
+    ci: github
+    template: r/github.linux.offline.build.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-r-offline-maximal
+    commit: 1e7f4ef64558f8c7ede05db55ea4ed110142f8d4
+  test-debian-12-docs: !Task
+    name: test-debian-12-docs
+    ci: github
+    template: docs/github.linux.yml
+    artifacts:
+    - docs.tar.gz
+    params:
+      env:
+        JDK: 17
+      pr_number: Unset
+      image: debian-docs
+      publish: false
+    branch: nightly-tests-2024-09-03-0-github-test-debian-12-docs
+    commit: d3d7b308fda2a4f324a6179c5720e1bb3f3ebf36
+  test-debian-12-python-3-amd64: !Task
+    name: test-debian-12-python-3-amd64
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        DEBIAN: 12
+      image: debian-python
+
+    branch: nightly-tests-2024-09-03-0-github-test-debian-12-python-3-amd64
+    commit: 304715f5cd26f9900ec4fab05c99e90ddb00536d
+  example-cpp-minimal-build-static-system-dependency: !Task
+    name: example-cpp-minimal-build-static-system-dependency
+    ci: github
+    template: cpp-examples/github.linux.yml
+    artifacts: []
+    params:
+      type: minimal_build
+      run: static-system-dependency
+
+    branch: 
+      nightly-tests-2024-09-03-0-github-example-cpp-minimal-build-static-system-dependency
+    commit: 006d74c1e5505915078d7792445a6224a42b8ea3
+  test-cuda-python: !Task
+    name: test-cuda-python
+    ci: github
+    template: docker-tests/github.cuda.yml
+    artifacts: []
+    params:
+      image: ubuntu-cuda-python
+
+  ############################## Fuzz tests #################################
+
+    branch: nightly-tests-2024-09-03-0-github-test-cuda-python
+    commit: 1c0b27744b47a4fe4ff139bbe6421dd04ffd4fb6
+  test-r-install-local: !Task
+    name: test-r-install-local
+    ci: github
+    template: r/github.macos-linux.local.yml
+    artifacts: []
+    params: {}
+    branch: nightly-tests-2024-09-03-0-github-test-r-install-local
+    commit: 11b6275a3f987d3fefbb3e7aa52a78343eced65b
+  test-ubuntu-20.04-cpp: !Task
+    name: test-ubuntu-20.04-cpp
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '20.04'
+      image: ubuntu-cpp
+    branch: nightly-tests-2024-09-03-0-github-test-ubuntu-20.04-cpp
+    commit: dfb7669a7edcf793857dd3eb21ef7a41290c3015
+  test-debian-12-cpp-amd64: !Task
+    name: test-debian-12-cpp-amd64
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        ARCH: amd64
+        DEBIAN: '12'
+      image: debian-cpp
+
+    branch: nightly-tests-2024-09-03-0-github-test-debian-12-cpp-amd64
+    commit: d4ec9d0da08fbfee87740db208c3185b554514fa
+  test-conda-cpp: !Task
+    name: test-conda-cpp
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+      image: conda-cpp
+    branch: nightly-tests-2024-09-03-0-github-test-conda-cpp
+    commit: a0397fa4e628e0095b03d5bd89f4f27497f625b9
+  test-r-gcc-11: !Task
+    name: test-r-gcc-11
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+        GCC_VERSION: 11
+      image: ubuntu-r-only-r
+
+  # This also has -flto=auto
+    branch: nightly-tests-2024-09-03-0-github-test-r-gcc-11
+    commit: 6d78d455ed2f047408bf8ff4fe3b7dfbe89437a9
+  test-conda-python-3.12: !Task
+    name: test-conda-python-3.12
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.12'
+        # Temporarily disable error on Warning: https://github.com/apache/arrow/issues/38239
+        # PYTEST_ARGS: "-W error -W 'ignore:Setting custom ClientSession:DeprecationWarning'"
+      image: conda-python
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.12
+    commit: 50cd5bd586fc4e44e0c80cc46861fd7d1085f8ce
+  test-r-rhub-debian-gcc-release-custom-ccache: !Task
+    name: test-r-rhub-debian-gcc-release-custom-ccache
+    ci: azure
+    template: r/azure.linux.yml
+    artifacts: []
+    params:
+      r_org: rhub
+      r_image: debian-gcc-release
+      r_tag: latest
+      r_custom_ccache: true
+
+    branch: nightly-tests-2024-09-03-0-azure-test-r-rhub-debian-gcc-release-custom-ccache
+    commit: 5b944f1c8fb2036cce5540dd7cb1d4819eae70a9
+  test-conda-python-3.10-substrait: !Task
+    name: test-conda-python-3.10-substrait
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+      image: conda-python-substrait
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.10-substrait
+    commit: 26beaa37020f13155e5b913ea49dc16ba090ebf1
+  test-r-gcc-12: !Task
+    name: test-r-gcc-12
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: 22.04
+        GCC_VERSION: 12
+      image: ubuntu-r-only-r
+
+    branch: nightly-tests-2024-09-03-0-github-test-r-gcc-12
+    commit: e43abcc19e5752a98a4cb68f0c8b15ea004adae7
+  test-conda-python-3.10-cython2: !Task
+    name: test-conda-python-3.10-cython2
+    ci: github
+    template: docker-tests/github.linux.yml
+    artifacts: []
+    params:
+      env:
+        PYTHON: '3.10'
+      image: conda-python-cython2
+
+    branch: nightly-tests-2024-09-03-0-github-test-conda-python-3.10-cython2
+    commit: 51cdd7be309454191ec4e2f383c6c55731999087
+params: {}
+branch: nightly-tests-2024-09-03-0
