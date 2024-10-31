@@ -1,0 +1,87 @@
+!Job
+target: !Target
+  head: a0f54359397facd24a1b65ceb3524369fe533df2
+  email: unknown
+  branch: release-verify-binary-version
+  remote: https://github.com/kou/arrow.git
+  github_repo: kou/arrow
+  version: 19.0.0.dev13
+  r_version: 18.0.0.100000013
+  no_rc_version: 19.0.0.dev13
+  no_rc_r_version: 18.0.0.100000013
+  no_rc_semver_version: 19.0.0-dev13
+  no_rc_snapshot_version: 19.0.0-SNAPSHOT
+tasks:
+  verify-rc-binaries-wheels-linux-almalinux-8-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: almalinux
+
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-99deba0604-github-verify-rc-binaries-wheels-linux-almalinux-8-amd64
+    commit: 79880c3ad762d70a3507e427b352010d03db6836
+  verify-rc-binaries-wheels-linux-conda-latest-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: conda
+
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-99deba0604-github-verify-rc-binaries-wheels-linux-conda-latest-amd64
+    commit: 1f3cce7c1f36063868d76df448fad71a18faf8a3
+  verify-rc-binaries-wheels-macos-14-arm64: !Task
+    name: verify-rc-binaries-wheels-macos-14-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      github_runner: macos-14
+      target: wheels
+
+  ######################## Windows verification ##############################
+
+    branch: actions-99deba0604-github-verify-rc-binaries-wheels-macos-14-arm64
+    commit: 80c3cc63321f0b9d043e0b2c380194dbc0da2b49
+  verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: ubuntu
+
+
+  # Separated these tasks from the loop above due to:
+  # - 'binary' verification is not platform dependent
+  # - 'yum' and 'apt' requires docker so we need to run the verification script
+  #   directly on the host
+    branch: actions-99deba0604-github-verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64
+    commit: 85dda11d40698d639e92d8113374fe50328de774
+  verify-rc-binaries-wheels-macos-13-amd64: !Task
+    name: verify-rc-binaries-wheels-macos-13-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      github_runner: macos-13
+      target: wheels
+
+    branch: actions-99deba0604-github-verify-rc-binaries-wheels-macos-13-amd64
+    commit: 88ffe88bf0801b338ed8dfe76fe59dff2ddefb82
+params:
+  release: 18.0.0
+  rc: '0'
+  pr_number: 44593
+branch: actions-99deba0604
