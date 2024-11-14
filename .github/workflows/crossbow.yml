@@ -1,0 +1,78 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# NOTE: must set "Crossbow" as name to have the badge links working in the
+# github comment reports!
+name: Crossbow
+on:
+  push:
+    branches:
+      - "*-github-*"
+
+env:
+  ARCHERY_DEBUG: 1
+
+
+
+jobs:
+  verify:
+    name: "Verify release candidate on Ubuntu"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: arrow
+          repository: apache/arrow
+          ref: 6a0414bd9a91e890ec6a45369bf61f405180628c
+          submodules: recursive
+
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            autoconf-archive \
+            binfmt-support \
+            bison \
+            build-essential \
+            curl \
+            flex \
+            gtk-doc-tools \
+            libgirepository1.0-dev \
+            wget
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.1
+
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Run verification
+        shell: bash
+        env:
+          TEST_DEFAULT: 0
+          TEST_BINARY: 1
+        run: |
+          arrow/dev/release/verify-release-candidate.sh 18.1.0 2
