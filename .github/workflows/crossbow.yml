@@ -1,0 +1,205 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# NOTE: must set "Crossbow" as name to have the badge links working in the
+# github comment reports!
+name: Crossbow
+on:
+  push:
+    branches:
+      - "*-github-*"
+
+env:
+  ARCHERY_DEBUG: 1
+
+
+jobs:
+  package:
+    name: Package
+    runs-on: ubuntu-22.04
+    env:
+      ARCHITECTURE: amd64
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: arrow
+          repository: kou/arrow
+          ref: d5e48a04574affb3f6867ea1528e8a19abfb4d3c
+          submodules: recursive
+
+      - name: Login to Dockerhub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Free up disk space
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        shell: bash
+        run: |
+          arrow/ci/scripts/util_free_space.sh
+
+
+      - name: Set up Ruby
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            rake \
+            ruby \
+            ruby-dev
+      - name: Prepare apache-arrow-apt-source for arm64
+        if: |
+          env.ARCHITECTURE == 'arm64'
+        run: |
+          pushd arrow/dev/tasks/linux-packages/apache-arrow-apt-source/apt
+          for target in *-*; do
+            cp -a ${target} ${target}-arm64
+          done
+          popd
+      - name: Prepare apache-arrow-release for arm64
+        if: |
+          env.ARCHITECTURE == 'arm64'
+        run: |
+          pushd arrow/dev/tasks/linux-packages/apache-arrow-release/yum
+          for target in *-*; do
+            cp -a ${target} ${target}-aarch64
+          done
+          popd
+      - name: Build
+        run: |
+          set -e
+          pushd arrow/dev/tasks/linux-packages
+          rake version:update ARROW_RELEASE_TIME="$(date --iso-8601=seconds)"
+          rake docker:pull || :
+          rake --trace apt:build BUILD_DIR=build
+          popd
+        env:
+          APT_TARGETS: ubuntu-jammy
+          ARROW_VERSION: 19.0.0.dev226
+          REPO: ${{ secrets.REPO }}
+          YUM_TARGETS: ubuntu-jammy
+      - name: Docker Push
+        continue-on-error: true
+        shell: bash
+        run: |
+          pushd arrow/dev/tasks/linux-packages
+          rake docker:push
+          popd
+        env:
+          APT_TARGETS: ubuntu-jammy
+          REPO: ${{ secrets.REPO }}
+          YUM_TARGETS: ubuntu-jammy
+
+      - name: Set up Python by actions/setup-python
+        if: |
+          !(runner.os == 'Linux' && runner.arch != 'X64')
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Set up Python by apt
+        if: runner.os == 'Linux' && runner.arch != 'X64'
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            libgit2-dev \
+            libpython3-dev \
+            python3-pip
+          sudo python3 -m pip install --upgrade pip
+      - name: Checkout Crossbow
+        uses: actions/checkout@v4
+        with:
+          path: crossbow
+          ref: actions-72c8775612
+      - name: Setup Crossbow
+        shell: bash
+        run: |
+          python3 -m pip install -e arrow/dev/archery[crossbow]
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Upload artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            upload-artifacts \
+            --sha actions-72c8775612-github-ubuntu-jammy-amd64 \
+            --tag actions-72c8775612-github-ubuntu-jammy-amd64 \
+            "arrow/dev/tasks/linux-packages/*/*/repositories/**/*.ddeb" \
+            "arrow/dev/tasks/linux-packages/*/*/repositories/**/*.deb" \
+            "arrow/dev/tasks/linux-packages/*/*/repositories/**/*.debian.tar.xz" \
+            "arrow/dev/tasks/linux-packages/*/*/repositories/**/*.dsc" \
+            "arrow/dev/tasks/linux-packages/*/*/repositories/**/*.orig.tar.gz" 
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Verify uploaded artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            status \
+            --task-filter 'ubuntu-jammy-amd64' \
+            --no-fetch \
+            --validate \
+            actions-72c8775612
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+
+      - name: Set up test
+        run: |
+          sudo apt install -y \
+            apt-utils \
+            cpio \
+            createrepo-c \
+            devscripts \
+            gpg \
+            rpm \
+            rsync
+          gem install --user-install apt-dists-merge
+          (echo "Key-Type: RSA"; \
+           echo "Key-Length: 4096"; \
+           echo "Name-Real: Test"; \
+           echo "Name-Email: test@example.com"; \
+           echo "%no-protection") | \
+            gpg --full-generate-key --batch
+          GPG_KEY_ID=$(gpg --list-keys --with-colon test@example.com | grep fpr | cut -d: -f10)
+          echo "GPG_KEY_ID=${GPG_KEY_ID}" >> ${GITHUB_ENV}
+          case "ubuntu-jammy" in
+            almalinux-*|amazon-linux-*|centos-*)
+              repositories_dir=arrow/dev/tasks/linux-packages/apache-arrow-release/yum/repositories
+              rpm2cpio ${repositories_dir}/*/*/*/Packages/apache-arrow-release-*.rpm | \
+                cpio -id
+              mv etc/pki/rpm-gpg/RPM-GPG-KEY-Apache-Arrow \
+                arrow/dev/tasks/linux-packages/KEYS
+              ;;
+          esac
+          gpg --export --armor test@example.com >> arrow/dev/tasks/linux-packages/KEYS
+      - name: Test
+        run: |
+          set -e
+          pushd arrow/dev/tasks/linux-packages
+          rake --trace apt:test
+          rm -rf apt/repositories
+          popd
+        env:
+          APT_TARGETS: ubuntu-jammy
+          ARROW_VERSION: 19.0.0.dev226
+          YUM_TARGETS: ubuntu-jammy
