@@ -1,0 +1,690 @@
+!Job
+target: !Target
+  head: 1e0a19d1feb8a05bc48e85cea254b51e9006b268
+  email: unknown
+  branch: fix/GH-45183--setup-ubuntu-llvm-dev
+  remote: https://github.com/amoeba/arrow.git
+  github_repo: amoeba/arrow
+  version: 19.0.0.dev248
+  r_version: 18.1.0.100000248
+  no_rc_version: 19.0.0.dev248
+  no_rc_r_version: 18.1.0.100000248
+  no_rc_no_dev_version: 19.0.0
+  no_rc_semver_version: 19.0.0-dev248
+  no_rc_snapshot_version: 19.0.0-SNAPSHOT
+  so_version: '1900'
+tasks:
+  verify-rc-binaries-apt-linux-amd64: !Task
+    name: verify-rc-binaries-apt-linux-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.yml
+    artifacts: []
+    params:
+      target: apt
+
+  ######################## macOS verification ################################
+
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-apt-linux-amd64
+    commit: fb25022ee4d3e2b801ed7066880a02c3ce9a28f3
+  verify-rc-binaries-jars-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-binaries-jars-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: jars
+      distro: ubuntu
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-jars-linux-ubuntu-22.04-amd64
+    commit: 4d5c17bbc266c259fabed7b5f332ef399f55678c
+  verify-rc-source-ruby-linux-conda-latest-amd64: !Task
+    name: verify-rc-source-ruby-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        CONDA: latest
+      target: ruby
+      distro: conda
+
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-ruby-linux-conda-latest-amd64
+    commit: 4e7d35a9a15a1cc00bd291b15b9d791334c3ee41
+  verify-rc-source-integration-linux-conda-latest-amd64: !Task
+    name: verify-rc-source-integration-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        CONDA: latest
+      target: integration
+      distro: conda
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-integration-linux-conda-latest-amd64
+    commit: 5acc44530ee0b8aba7f37da8ccd0887a3f01c893
+  verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: ubuntu
+
+
+  # Separated these tasks from the loop above due to:
+  # - 'binary' verification is not platform dependent
+  # - 'yum' and 'apt' requires docker so we need to run the verification script
+  #   directly on the host
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64
+    commit: 5a4d68d3952870bd5a372f9e21fb207911d1d9da
+  verify-rc-source-ruby-macos-amd64: !Task
+    name: verify-rc-source-ruby-macos-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: ruby
+      github_runner: macos-13
+
+    branch: actions-cd6f8ed57c-github-verify-rc-source-ruby-macos-amd64
+    commit: 7a8cc673c8a4cea8ceab52245bbab01e9f052d36
+  verify-rc-source-python-macos-amd64: !Task
+    name: verify-rc-source-python-macos-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: python
+      github_runner: macos-13
+    branch: actions-cd6f8ed57c-github-verify-rc-source-python-macos-amd64
+    commit: e33b8d44bf574993f9816856b7abd92cd224c374
+  verify-rc-source-python-macos-conda-amd64: !Task
+    name: verify-rc-source-python-macos-conda-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: python
+      use_conda: true
+      github_runner: macos-13
+
+    branch: actions-cd6f8ed57c-github-verify-rc-source-python-macos-conda-amd64
+    commit: d763f911b762f64cc19c8dd57b24f77ec098ce70
+  verify-rc-source-csharp-macos-arm64: !Task
+    name: verify-rc-source-csharp-macos-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        ARROW_FLIGHT: 0
+        ARROW_GANDIVA: 0
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      target: csharp
+      github_runner: macos-14
+    branch: actions-cd6f8ed57c-github-verify-rc-source-csharp-macos-arm64
+    commit: 486162200509d4b548215f24447b05450ed276f2
+  verify-rc-source-integration-macos-conda-amd64: !Task
+    name: verify-rc-source-integration-macos-conda-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: integration
+      use_conda: true
+      github_runner: macos-13
+    branch: actions-cd6f8ed57c-github-verify-rc-source-integration-macos-conda-amd64
+    commit: 06597a80c623de04a330a04b4bbf7b8716aa4110
+  verify-rc-source-csharp-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-source-csharp-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '22.04'
+      target: csharp
+      distro: ubuntu
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-csharp-linux-ubuntu-22.04-amd64
+    commit: 3e37141853c493ec7468f8216596477b47dee7b3
+  verify-rc-source-integration-macos-amd64: !Task
+    name: verify-rc-source-integration-macos-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: integration
+      github_runner: macos-13
+    branch: actions-cd6f8ed57c-github-verify-rc-source-integration-macos-amd64
+    commit: d55e5c2479d71bf59f86fe4b2b624f587f005cc3
+  verify-rc-source-windows: !Task
+    name: verify-rc-source-windows
+    ci: github
+    template: verify-rc/github.win.yml
+    artifacts: []
+    params:
+      env:
+        PYARROW_TEST_GDB: OFF
+      script: verify-release-candidate.bat
+
+    branch: actions-cd6f8ed57c-github-verify-rc-source-windows
+    commit: f4d18cbb5a83a0f18b7ff39852a26177c6f7449c
+  verify-rc-source-js-linux-conda-latest-amd64: !Task
+    name: verify-rc-source-js-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        CONDA: latest
+      target: js
+      distro: conda
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-js-linux-conda-latest-amd64
+    commit: 48237fca27d001ecd1768ff1f5071b0c549f88b0
+  verify-rc-source-integration-linux-almalinux-8-amd64: !Task
+    name: verify-rc-source-integration-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        ALMALINUX: '8'
+      target: integration
+      distro: almalinux
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-integration-linux-almalinux-8-amd64
+    commit: f8d3b9acdf446d0129b66f617745e9e0855a048f
+  verify-rc-binaries-wheels-macos-14-arm64: !Task
+    name: verify-rc-binaries-wheels-macos-14-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      github_runner: macos-14
+      target: wheels
+
+  ######################## Windows verification ##############################
+
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-wheels-macos-14-arm64
+    commit: aee7c64882d26b53d862c6297d4d9aa2a04a1511
+  verify-rc-source-ruby-linux-ubuntu-20.04-amd64: !Task
+    name: verify-rc-source-ruby-linux-ubuntu-20.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '20.04'
+      target: ruby
+      distro: ubuntu
+
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-ruby-linux-ubuntu-20.04-amd64
+    commit: 27b3b0420c09dbb93df2e5746f1e3a10d125ffe6
+  verify-rc-source-js-linux-ubuntu-20.04-amd64: !Task
+    name: verify-rc-source-js-linux-ubuntu-20.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '20.04'
+      target: js
+      distro: ubuntu
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-js-linux-ubuntu-20.04-amd64
+    commit: 713d141886ca9aa8aefaee26eee0fca82c61ffcc
+  verify-rc-binaries-jars-linux-ubuntu-20.04-amd64: !Task
+    name: verify-rc-binaries-jars-linux-ubuntu-20.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: jars
+      distro: ubuntu
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-jars-linux-ubuntu-20.04-amd64
+    commit: 4d5c17bbc266c259fabed7b5f332ef399f55678c
+  verify-rc-source-cpp-linux-ubuntu-20.04-amd64: !Task
+    name: verify-rc-source-cpp-linux-ubuntu-20.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '20.04'
+      target: cpp
+      distro: ubuntu
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-cpp-linux-ubuntu-20.04-amd64
+    commit: 4187223ae0f88e31badf504f3879d8640828ac99
+  verify-rc-source-csharp-linux-ubuntu-20.04-amd64: !Task
+    name: verify-rc-source-csharp-linux-ubuntu-20.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '20.04'
+      target: csharp
+      distro: ubuntu
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-csharp-linux-ubuntu-20.04-amd64
+    commit: 67321ef8711d2c621580435de1bd9ce2e0ca5ba5
+  verify-rc-source-cpp-macos-arm64: !Task
+    name: verify-rc-source-cpp-macos-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        ARROW_FLIGHT: 0
+        ARROW_GANDIVA: 0
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      target: cpp
+      github_runner: macos-14
+    branch: actions-cd6f8ed57c-github-verify-rc-source-cpp-macos-arm64
+    commit: b84f9f3fcf07aa0dc9b2ed04a3ba9b2a5f8289bd
+  verify-rc-binaries-yum-linux-amd64: !Task
+    name: verify-rc-binaries-yum-linux-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.yml
+    artifacts: []
+    params:
+      target: yum
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-yum-linux-amd64
+    commit: 7adeb6b566f161be3f38cd7587dad4724da464a5
+  verify-rc-source-ruby-macos-arm64: !Task
+    name: verify-rc-source-ruby-macos-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        ARROW_FLIGHT: 0
+        ARROW_GANDIVA: 0
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      target: ruby
+      github_runner: macos-14
+
+    branch: actions-cd6f8ed57c-github-verify-rc-source-ruby-macos-arm64
+    commit: a4e18c738183dbbc90bddaf0e0c80b9f9eb799b4
+  verify-rc-source-python-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-source-python-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '22.04'
+      target: python
+      distro: ubuntu
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-python-linux-ubuntu-22.04-amd64
+    commit: 26777083314024906d1b1d4a4bec32a74407be27
+  verify-rc-source-python-macos-arm64: !Task
+    name: verify-rc-source-python-macos-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        ARROW_FLIGHT: 0
+        ARROW_GANDIVA: 0
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      target: python
+      github_runner: macos-14
+    branch: actions-cd6f8ed57c-github-verify-rc-source-python-macos-arm64
+    commit: 441534a3043974d59cf56de44cbf51b1ab65a04d
+  verify-rc-source-js-macos-amd64: !Task
+    name: verify-rc-source-js-macos-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: js
+      github_runner: macos-13
+    branch: actions-cd6f8ed57c-github-verify-rc-source-js-macos-amd64
+    commit: de65f7f1e0af14baa6dfe0d3ba71ce9b77c4c592
+  verify-rc-binaries-wheels-macos-13-amd64: !Task
+    name: verify-rc-binaries-wheels-macos-13-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      github_runner: macos-13
+      target: wheels
+
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-wheels-macos-13-amd64
+    commit: 05446caf4e39101e384ac9282727282f29759bf7
+  verify-rc-source-js-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-source-js-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '22.04'
+      target: js
+      distro: ubuntu
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-js-linux-ubuntu-22.04-amd64
+    commit: a17b73115fd99d4d25d0588d6fcfebbfc5b0c8cf
+  verify-rc-source-cpp-linux-conda-latest-amd64: !Task
+    name: verify-rc-source-cpp-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        CONDA: latest
+      target: cpp
+      distro: conda
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-cpp-linux-conda-latest-amd64
+    commit: eec3f6431f6ae686611673318c6d5d5ae3f9538f
+  verify-rc-source-cpp-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-source-cpp-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '22.04'
+      target: cpp
+      distro: ubuntu
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-cpp-linux-ubuntu-22.04-amd64
+    commit: 721613e2f23e4f6b0f9054df20bbb32ce44f6e8a
+  verify-rc-source-js-macos-arm64: !Task
+    name: verify-rc-source-js-macos-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        ARROW_FLIGHT: 0
+        ARROW_GANDIVA: 0
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      target: js
+      github_runner: macos-14
+    branch: actions-cd6f8ed57c-github-verify-rc-source-js-macos-arm64
+    commit: 281e45a2e1d162b7b46dfa4d5901d493038d8876
+  verify-rc-binaries-jars-linux-almalinux-8-amd64: !Task
+    name: verify-rc-binaries-jars-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: jars
+      distro: almalinux
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-jars-linux-almalinux-8-amd64
+    commit: e4df4fcdbd282a111f05ab89eb53776ce3f987ac
+  verify-rc-source-python-linux-conda-latest-amd64: !Task
+    name: verify-rc-source-python-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        CONDA: latest
+      target: python
+      distro: conda
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-python-linux-conda-latest-amd64
+    commit: 8eec7724c0efb296bc5e90be18aee5c571343d98
+  verify-rc-source-python-linux-almalinux-8-amd64: !Task
+    name: verify-rc-source-python-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        ALMALINUX: '8'
+      target: python
+      distro: almalinux
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-python-linux-almalinux-8-amd64
+    commit: 822464b1ea2d4cb06c2ba504823d78c2af5f1353
+  verify-rc-source-integration-macos-arm64: !Task
+    name: verify-rc-source-integration-macos-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        ARROW_FLIGHT: 0
+        ARROW_GANDIVA: 0
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      target: integration
+      github_runner: macos-14
+    branch: actions-cd6f8ed57c-github-verify-rc-source-integration-macos-arm64
+    commit: 32e45dec98b7ef79ba6c3593892b8c678ef501da
+  verify-rc-source-cpp-linux-almalinux-8-amd64: !Task
+    name: verify-rc-source-cpp-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        ALMALINUX: '8'
+      target: cpp
+      distro: almalinux
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-cpp-linux-almalinux-8-amd64
+    commit: 28be3b54d11feccb2c7baee4d3743a983dd78f1a
+  verify-rc-binaries-binary-linux-amd64: !Task
+    name: verify-rc-binaries-binary-linux-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.yml
+    artifacts: []
+    params:
+      target: binary
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-binary-linux-amd64
+    commit: 5f5ad5c881347d88cfcf6325ee1e71cf286850b1
+  verify-rc-source-cpp-macos-conda-amd64: !Task
+    name: verify-rc-source-cpp-macos-conda-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: cpp
+      use_conda: true
+      github_runner: macos-13
+    branch: actions-cd6f8ed57c-github-verify-rc-source-cpp-macos-conda-amd64
+    commit: 297bfcc649ecaab7aef3a632a0404e609b705b2b
+  verify-rc-source-csharp-linux-conda-latest-amd64: !Task
+    name: verify-rc-source-csharp-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        CONDA: latest
+      target: csharp
+      distro: conda
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-csharp-linux-conda-latest-amd64
+    commit: 832427088c1c50434ec2e90a54129699e5a94952
+  verify-rc-source-js-linux-almalinux-8-amd64: !Task
+    name: verify-rc-source-js-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        ALMALINUX: '8'
+      target: js
+      distro: almalinux
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-js-linux-almalinux-8-amd64
+    commit: 1eb334ceb24cb487ffdd7223d7f975c2db3d774a
+  verify-rc-source-ruby-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-source-ruby-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '22.04'
+      target: ruby
+      distro: ubuntu
+
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-ruby-linux-ubuntu-22.04-amd64
+    commit: 697797ebe0bef4b143d715a071fdc48f78ee8ca6
+  verify-rc-binaries-wheels-linux-conda-latest-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: conda
+
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-wheels-linux-conda-latest-amd64
+    commit: 56dd3e24717039fe65bb751459b7bd64b46fa40f
+  verify-rc-source-cpp-macos-amd64: !Task
+    name: verify-rc-source-cpp-macos-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: cpp
+      github_runner: macos-13
+    branch: actions-cd6f8ed57c-github-verify-rc-source-cpp-macos-amd64
+    commit: 3ed6655b082977fc2f610e56232c8efd98984cc0
+  verify-rc-source-integration-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-source-integration-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        UBUNTU: '22.04'
+      target: integration
+      distro: ubuntu
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-integration-linux-ubuntu-22.04-amd64
+    commit: ef94cfcd6bd021683198b00f69a59009150f1bec
+  verify-rc-binaries-jars-linux-conda-latest-amd64: !Task
+    name: verify-rc-binaries-jars-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: jars
+      distro: conda
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-jars-linux-conda-latest-amd64
+    commit: a9e4391c0caa23e220e739de414852587c9d9ad6
+  verify-rc-binaries-wheels-linux-almalinux-8-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: almalinux
+
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-wheels-linux-almalinux-8-amd64
+    commit: 2bdf2344180161e6eda8ebfb5f87d589d03514e5
+  verify-rc-source-csharp-linux-almalinux-8-amd64: !Task
+    name: verify-rc-source-csharp-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        ALMALINUX: '8'
+      target: csharp
+      distro: almalinux
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-csharp-linux-almalinux-8-amd64
+    commit: 637fcd4cb1540f2d7c686f7470a34f5ec9cd2704
+  verify-rc-binaries-wheels-windows: !Task
+    name: verify-rc-binaries-wheels-windows
+    ci: github
+    template: verify-rc/github.win.yml
+    artifacts: []
+    params:
+      env:
+        PYARROW_TEST_GDB: OFF
+      script: verify-release-candidate-wheels.bat
+
+############################## Docker tests ##################################
+
+    branch: actions-cd6f8ed57c-github-verify-rc-binaries-wheels-windows
+    commit: f6067ffd4b4ec07d8b049fa096dd54160caa0431
+  verify-rc-source-ruby-linux-almalinux-8-amd64: !Task
+    name: verify-rc-source-ruby-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      env:
+        ALMALINUX: '8'
+      target: ruby
+      distro: almalinux
+
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: actions-cd6f8ed57c-github-verify-rc-source-ruby-linux-almalinux-8-amd64
+    commit: 9af7b90b5e4a614809ce1f4dd32b4af0110f2c53
+  verify-rc-source-csharp-macos-amd64: !Task
+    name: verify-rc-source-csharp-macos-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      target: csharp
+      github_runner: macos-13
+    branch: actions-cd6f8ed57c-github-verify-rc-source-csharp-macos-amd64
+    commit: 4672425dfe941f5edcd92a5ed9774cc61433ba86
+params:
+  pr_number: 45184
+branch: actions-cd6f8ed57c
