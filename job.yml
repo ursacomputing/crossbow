@@ -1,0 +1,191 @@
+!Job
+target: !Target
+  head: 272715f6df2a042d69881ffa03d5078c58e4b345
+  email: unknown
+  branch: release-19.0.1-rc1
+  remote: https://github.com/apache/arrow.git
+  github_repo: apache/arrow
+  version: 20.0.1.dev0
+  r_version: 19.0.1
+  no_rc_version: 20.0.1.dev0
+  no_rc_r_version: 19.0.1
+  no_rc_no_dev_version: 20.0.1
+  no_rc_semver_version: 20.0.1-dev0
+  no_rc_snapshot_version: 20.0.1-SNAPSHOT
+  so_version: '2000'
+tasks:
+  verify-rc-binaries-yum-linux-amd64: !Task
+    name: verify-rc-binaries-yum-linux-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.yml
+    artifacts: []
+    params:
+      target: yum
+    branch: verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-yum-linux-amd64
+    commit: 4625d4e007337a4f63ddf62ba273174e37eea4e3
+  verify-rc-binaries-jars-linux-conda-latest-amd64: !Task
+    name: verify-rc-binaries-jars-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: jars
+      distro: conda
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: 
+      verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-jars-linux-conda-latest-amd64
+    commit: 5da647e11094879b943aece994f85a2b7f0c6f94
+  verify-rc-binaries-jars-linux-ubuntu-20.04-amd64: !Task
+    name: verify-rc-binaries-jars-linux-ubuntu-20.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: jars
+      distro: ubuntu
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: 
+      verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-jars-linux-ubuntu-20.04-amd64
+    commit: 13c93674e2918ddc145e58c5ff4418cb38483d08
+  verify-rc-binaries-wheels-linux-conda-latest-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-conda-latest-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: conda
+
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: 
+      verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-wheels-linux-conda-latest-amd64
+    commit: 980613d7ea9342fbdfb5215c0b7fe40878fde571
+  verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: ubuntu
+
+
+  # Separated these tasks from the loop above due to:
+  # - 'binary' verification is not platform dependent
+  # - 'yum' and 'apt' requires docker so we need to run the verification script
+  #   directly on the host
+    branch: 
+      verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-wheels-linux-ubuntu-22.04-amd64
+    commit: ca110bf2fcaf4f35c2a97c76dd31af305db04ee7
+  verify-rc-binaries-wheels-windows: !Task
+    name: verify-rc-binaries-wheels-windows
+    ci: github
+    template: verify-rc/github.win.yml
+    artifacts: []
+    params:
+      env:
+        PYARROW_TEST_GDB: OFF
+      script: verify-release-candidate-wheels.bat
+
+############################## Docker tests ##################################
+
+    branch: verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-wheels-windows
+    commit: ba07cf7ffea358bbd01203ca14776086ead47eca
+  verify-rc-binaries-apt-linux-amd64: !Task
+    name: verify-rc-binaries-apt-linux-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.yml
+    artifacts: []
+    params:
+      target: apt
+
+  ######################## macOS verification ################################
+
+    branch: verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-apt-linux-amd64
+    commit: 626512f21aca77f8f871d28098fdcd470b66de9c
+  verify-rc-binaries-wheels-linux-almalinux-8-amd64: !Task
+    name: verify-rc-binaries-wheels-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: wheels
+      distro: almalinux
+
+    # Skip verification for python and integration on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: 
+      verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-wheels-linux-almalinux-8-amd64
+    commit: 07e0d9256280496a9769c08ccb8d1b54ccb9baf8
+  verify-rc-binaries-wheels-macos-13-amd64: !Task
+    name: verify-rc-binaries-wheels-macos-13-amd64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      github_runner: macos-13
+      target: wheels
+
+    branch: verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-wheels-macos-13-amd64
+    commit: c462dccefe53bcf8ea5023e31a7a2d0277afd543
+  verify-rc-binaries-jars-linux-ubuntu-22.04-amd64: !Task
+    name: verify-rc-binaries-jars-linux-ubuntu-22.04-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: jars
+      distro: ubuntu
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: 
+      verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-jars-linux-ubuntu-22.04-amd64
+    commit: 13c93674e2918ddc145e58c5ff4418cb38483d08
+  verify-rc-binaries-binary-linux-amd64: !Task
+    name: verify-rc-binaries-binary-linux-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.yml
+    artifacts: []
+    params:
+      target: binary
+    branch: verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-binary-linux-amd64
+    commit: f933887b034822aa3f0dcc73fd742b35454deefc
+  verify-rc-binaries-jars-linux-almalinux-8-amd64: !Task
+    name: verify-rc-binaries-jars-linux-almalinux-8-amd64
+    ci: github
+    template: verify-rc/github.linux.amd64.docker.yml
+    artifacts: []
+    params:
+      target: jars
+      distro: almalinux
+    # Skip verification for wheels on Ubuntu 20.04
+    # GH-44253. Remove once we drop support for 20.04
+    branch: 
+      verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-jars-linux-almalinux-8-amd64
+    commit: 2d3ced7632b8f2845098491a4c4d8905662fac94
+  verify-rc-binaries-wheels-macos-14-arm64: !Task
+    name: verify-rc-binaries-wheels-macos-14-arm64
+    ci: github
+    template: verify-rc/github.macos.yml
+    artifacts: []
+    params:
+      env:
+        PYTEST_ADDOPTS: -k 'not test_cancellation'
+      github_runner: macos-14
+      target: wheels
+
+  ######################## Windows verification ##############################
+
+    branch: verify-19.0.1-rc1-e8ef729825-github-verify-rc-binaries-wheels-macos-14-arm64
+    commit: 450983ab655ca67b2f21942f83110b3d8c3210b9
+params:
+  release: 19.0.1
+  rc: '1'
+  pr_number: 45502
+branch: verify-19.0.1-rc1-e8ef729825
