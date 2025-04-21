@@ -35,7 +35,12 @@ test_that("arrow_build_table handles successful builds", {
     build_links = "https://ci-builds/build/123"
   )
 
-  success_result <- arrow_build_table(success_data, "Linux", "task1", to_day = fixed_date)
+  success_result <- arrow_build_table(
+    success_data,
+    "Linux",
+    "task1",
+    current_day = fixed_date
+  )
 
   expect_equal(nrow(success_result), 1)
   expect_equal(success_result$most_recent_status, "passing")
@@ -74,7 +79,12 @@ test_that("arrow_build_table handles recent failures", {
     )
   )
 
-  failure_result <- arrow_build_table(failure_data, "Linux", "task1", to_day = fixed_date)
+  failure_result <- arrow_build_table(
+    failure_data,
+    "Linux",
+    "task1",
+    current_day = fixed_date
+  )
 
   expect_equal(nrow(failure_result), 1)
   expect_equal(failure_result$most_recent_status, "failing")
@@ -104,7 +114,12 @@ test_that("arrow_build_table handles all failures case", {
     )
   )
 
-  all_failure_result <- arrow_build_table(all_failure_data, "Linux", "task1", to_day = fixed_date)
+  all_failure_result <- arrow_build_table(
+    all_failure_data,
+    "Linux",
+    "task1",
+    current_day = fixed_date
+  )
 
   expect_equal(nrow(all_failure_result), 1)
   expect_equal(all_failure_result$most_recent_status, "failing")
@@ -138,7 +153,12 @@ test_that("arrow_build_table recent success, some failures", {
   )
 
   # Should be treated as success since the most recent day (day_window) is successful
-  result <- arrow_build_table(mixed_data, "Linux", "task1", to_day = fixed_date)
+  result <- arrow_build_table(
+    mixed_data,
+    "Linux",
+    "task1",
+    current_day = fixed_date
+  )
 
   expect_equal(result$most_recent_status, "passing")
   expect_equal(result$since_last_successful_build, 1)
@@ -160,7 +180,12 @@ test_that("arrow_build_table ignores failures and then removal", {
     build_links = "https://ci-builds/build/123"
   )
 
-  all_failure_result <- arrow_build_table(all_failure_data, "Linux", "task1", to_day = fixed_date)
+  all_failure_result <- arrow_build_table(
+    all_failure_data,
+    "Linux",
+    "task1",
+    current_day = fixed_date
+  )
 
   expect_equal(nrow(all_failure_result), 0)
 })

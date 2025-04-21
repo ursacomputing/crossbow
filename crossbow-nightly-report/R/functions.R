@@ -50,7 +50,7 @@ get_commit <- function(df, label) {
   df$arrow_commit[df$fail_label == label]
 }
 
-arrow_build_table <- function(nightly_data, type, task, to_day = today()) {
+arrow_build_table <- function(nightly_data, type, task, current_day = today()) {
   # Filter data for a specific build type and task
   type_task_data <- nightly_data %>%
     filter(build_type == type) %>%
@@ -58,7 +58,7 @@ arrow_build_table <- function(nightly_data, type, task, to_day = today()) {
 
   # Look at yesterday's date to determine recent failures
   # This is used as a window for identifying tasks that failed recently
-  day_window <- to_day - 1
+  day_window <- current_day - 1
 
   # Get records where the task failed recently, order by date (newest first)
   # and standardize task status values to "pass" and "fail"
@@ -82,7 +82,7 @@ arrow_build_table <- function(nightly_data, type, task, to_day = today()) {
     # Calculate days since the last run (regardless of status)
     days <- as.numeric(
       difftime(
-        ymd(to_day, tz = "UTC"),
+        ymd(current_day, tz = "UTC"),
         max(type_task_data$nightly_date)
       )
     )
@@ -91,7 +91,7 @@ arrow_build_table <- function(nightly_data, type, task, to_day = today()) {
       # Remove stale data by filtering out everything but the last ~2 days of runs
       # this makes it so that jobs that have been deleted (but are still in the 120 day look back)
       # don't continue to show up.
-      filter(nightly_date >= to_day - 2) %>%
+      filter(nightly_date >= current_day - 2) %>%
       # Then, take the most recent run since that's all we care about if there are no failures.
       slice_max(order_by = nightly_date) %>%
       mutate(
