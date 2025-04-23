@@ -79,7 +79,7 @@ most_recent_commit <- unique(nightly$arrow_commit[nightly$nightly_date == max(ni
 
 <a href='https://arrow.apache.org/'><img src='https://arrow.apache.org/img/arrow-logo_hex_black-txt_white-bg.png' align="right" height="150" /></a>
 
-This report builds in sync with the email notifications (`builds@arrow.apache.org`). `r pluralize('Most recent commit{?s} are:  {arrow_commit_links(most_recent_commit)}')`. The report examines data from the last `r lookback_window` days.
+This report builds in sync with the email notifications (`builds@arrow.apache.org`). `r pluralize('Most recent commit{?s} {?is/are}:  {arrow_commit_links(most_recent_commit)}')`. The report examines data from the last `r lookback_window` days.
 
 
 # Summary 
@@ -280,7 +280,7 @@ build_table <- map2_df(map_params$build_type, map_params$task_name, ~ arrow_buil
 ```{r build_table}
 bs_nightly_tbl <- build_table %>%
   select(where(~ sum(!is.na(.x)) > 0)) %>% ## remove any columns with no data
-  arrange(build_type, most_recent_status, desc(since_last_successful_build)) %>%
+  arrange(most_recent_status, build_type, desc(since_last_successful_build)) %>%
   rowwise() %>%
   mutate(
     since_last_successful_build = ifelse(
@@ -297,12 +297,11 @@ bs_nightly_tbl_sorted <- bs_nightly_tbl[, rev(sort(names(bs_nightly_tbl)))] %>%
   relocate(any_of(c("last_successful_build", "first_failure")), .after = last_successful_commit) %>%
   relocate(build_type, .before = task_name)
 
-## set a row number such all the failing builds are always displayed
+## set a row number such all the failing builds are always displayed with a lower bound of 25
 tbl_row_n <- bs_nightly_tbl_sorted %>%
   filter(most_recent_status == "failing") %>%
-  count(build_type) %>%
-  filter(n == max(n)) %>%
-  pull(n)
+  count() %>%
+  max(., 25)
 
 names(bs_nightly_tbl_sorted) <- make_nice_names(bs_nightly_tbl_sorted)
 
@@ -332,13 +331,13 @@ bs_nightly_tbl_sorted %>%
     ),
     columns = list(
       `Build Type` = reactable::colDef(
-        width = 80,
+        width = 100,
         filterInput = function(values, name) {
           dropdown_helper(values, name, build_element_id)
         }
       ),
       `Task Name` = reactable::colDef(
-        width = 110
+        width = 150
       ),
       `Since Last Successful Build` = reactable::colDef(
         width = 100,
@@ -347,22 +346,22 @@ bs_nightly_tbl_sorted %>%
         }
       ),
       `Most Recent Status` = reactable::colDef(
-        width = 70,
+        width = 85,
         filterInput = function(values, name) {
           dropdown_helper(values, name, build_element_id)
         }
       ),
       `Last Successful Commit` = reactable::colDef(
-        width = 80
+        width = 90
       ),
       `Last Successful Build` = reactable::colDef(
         width = 80
       ),
       `First Failure` = reactable::colDef(
-        width = 60
+        width = 70
       ),
       `Most Recent Failure` = reactable::colDef(
-        width = 60
+        width = 70
       )
     ),
     elementId = build_element_id
@@ -408,16 +407,16 @@ nightly_sub_tbl %>%
     ),
     columns = list(
       `Task Status` = reactable::colDef(
-        width = 80,
+        width = 90,
         filterInput = function(values, name) {
           dropdown_helper(values, name, error_element_id)
         }
       ),
       `Task Name` = reactable::colDef(
-        width = 200,
-        filterInput = function(values, name) {
-          dropdown_helper(values, name, error_element_id)
-        }
+        width = 240,
+        # filterInput = function(values, name) {
+        #   dropdown_helper(values, name, error_element_id)
+        # }
       ),
       `Build Type` = reactable::colDef(
         width = 100,
