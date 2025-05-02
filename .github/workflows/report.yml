@@ -62,6 +62,8 @@ jobs:
           job_prefix=nightly-${{ inputs.report_type }}-${{ steps.date.outputs.date }}
           job_id=$(archery crossbow latest-prefix ${job_prefix})
           echo "Sending report for job ${job_id}..."
+          # Continue even if email sending fails
+          set +e
           archery crossbow report \
             --send \
             --sender-name Crossbow \
@@ -70,6 +72,13 @@ jobs:
             --smtp-user ${{ secrets.CROSSBOW_SMTP_USER }} \
             --smtp-password ${{ secrets.CROSSBOW_SMTP_PASSWORD }} \
             ${job_id}
+          email_exit_code=$?
+          set -e
+          
+          if [ $email_exit_code -ne 0 ]; then
+            echo "::warning::Email sending failed but continuing with workflow"
+          fi
+
           echo "Sending Slack report for job ${job_id}..."
           archery crossbow report-chat \
             --send \
