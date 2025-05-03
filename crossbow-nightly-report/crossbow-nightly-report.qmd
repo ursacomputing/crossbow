@@ -12,7 +12,6 @@ format:
         gutter-width: 1.5rem
     self-contained: true
     page-layout: full
-    margin-left: 30px
     link-external-newwindow: true
     theme: [cosmo, crossbow.scss]
 ---
@@ -77,12 +76,199 @@ nightly <- open_csv_dataset("../csv_reports") %>%
 most_recent_commit <- unique(nightly$arrow_commit[nightly$nightly_date == max(nightly$nightly_date)])
 ```
 
-<a href='https://arrow.apache.org/'><img src='https://arrow.apache.org/img/arrow-logo_hex_black-txt_white-bg.png' align="right" height="150" /></a>
+::: {style="overflow: auto;"}
+<a href='https://arrow.apache.org/'><img src='https://arrow.apache.org/img/arrow-logo_hex_black-txt_white-bg.png' align="right" height="150" style="padding-left: 2rem !important;" /></a>
 
-This report builds in sync with the email notifications (`builds@arrow.apache.org`). `r pluralize('Most recent commit{?s} {?is/are}:  {arrow_commit_links(most_recent_commit)}')`. The report examines data from the last `r lookback_window` days.
+This report builds in sync with the email notifications (`builds@arrow.apache.org`). `r pluralize('The most recent commit{?s} {?is/are}:  {arrow_commit_links(most_recent_commit)}')`. The report examines data from the last `r lookback_window` days. 
+
+This report was prepared on `r Sys.Date()`.
+:::
+
+::: {.panel-tabset}
+
+# Build Status   
+
+```{r build_status}
+#| results: asis
+# this file can be generated with `archery crossbow check-config > all.yml`
+tasks <- yaml.load_file("../all.yml")
+
+tests <- tasks$groups[["nightly-tests"]]
+packaging <- tasks$groups[["nightly-packaging"]]
+release <- tasks$groups[["nightly-release"]]
+nightly_regex <-  paste0(c(tests, packaging, release), collapse = "|")
+
+active_jobs <- tasks$tasks %>% names() %>% grep(nightly_regex, x = ., value = TRUE)
+
+map_params <- nightly %>%
+  distinct(task_name, build_type) %>%
+  filter(task_name %in% active_jobs)
+
+build_table <- map2_df(map_params$build_type, map_params$task_name, ~ arrow_build_table(nightly, type = .x, task = .y))
+```
 
 
-# Summary 
+```{r build_table}
+bs_nightly_tbl <- build_table %>%
+  select(where(~ sum(!is.na(.x)) > 0)) %>% ## remove any columns with no data
+  arrange(most_recent_status, build_type, desc(since_last_successful_build)) %>%
+  rowwise() %>%
+  mutate(
+    since_last_successful_build = ifelse(
+      is.na(since_last_successful_build), "-",
+      pluralize("{since_last_successful_build} day{?s}")
+    )
+  ) %>%
+  ungroup()
+
+## Need to sort columns at this level because of variable fail dates
+## TODO: find something a little less hacky
+bs_nightly_tbl_sorted <- bs_nightly_tbl[, rev(sort(names(bs_nightly_tbl)))] %>%
+  relocate(any_of("most_recent_failure"), .after = last_col()) %>%
+  relocate(any_of(c("last_successful_build", "first_failure")), .after = last_successful_commit) %>%
+  relocate(build_type, .before = task_name)
+
+## set a row number such all the failing builds are always displayed with a lower bound of 25
+tbl_row_n <- bs_nightly_tbl_sorted %>%
+  filter(most_recent_status == "failing") %>%
+  count() %>%
+  max(., 25)
+
+names(bs_nightly_tbl_sorted) <- make_nice_names(bs_nightly_tbl_sorted)
+
+## html element id
+build_element_id <- "build_status"
+
+bs_nightly_tbl_sorted %>%
+  reactable(
+    filterable = TRUE,
+    highlight = TRUE,
+    wrap = TRUE,
+    bordered = TRUE,
+    resizable = TRUE,
+    defaultPageSize = tbl_row_n,
+    rowStyle = function(index) {
+      if (bs_nightly_tbl_sorted[index, "Most Recent Status"] == "failing") {
+        list(background = "#ffe4e4")
+      } else {
+        list(background = "#d1e8ff")
+      }
+    },
+    defaultColDef = reactable::colDef(
+      html = TRUE,
+      class = "bw_table_cells",
+      headerClass = "bw_table_header",
+      headerVAlign = "bottom",
+      minWidth = 50
+    ),
+    columns = list(
+      `Build Type` = reactable::colDef(
+        minWidth = 100,
+        filterInput = function(values, name) {
+          dropdown_helper(values, name, build_element_id)
+        }
+      ),
+      `Task Name` = reactable::colDef(
+        minWidth = 150
+      ),
+      `Since Last Successful Build` = reactable::colDef(
+        minWidth = 100,
+        filterInput = function(values, name) {
+          dropdown_helper(values, name, build_element_id)
+        }
+      ),
+      `Most Recent Status` = reactable::colDef(
+        minWidth = 85,
+        filterInput = function(values, name) {
+          dropdown_helper(values, name, build_element_id)
+        }
+      ),
+      `Last Successful Commit` = reactable::colDef(
+        minWidth = 90
+      ),
+      `Last Successful Build` = reactable::colDef(
+        minWidth = 80
+      ),
+      `First Failure` = reactable::colDef(
+        minWidth = 70
+      ),
+      `Most Recent Failure` = reactable::colDef(
+        minWidth = 70
+      )
+    ),
+    elementId = build_element_id
+  )
+```
+
+# Logs
+
+```{r error-logs}
+#| results: asis
+#| eval: true
+
+error_element_id <- "error-logs-id"
+nightly_sub_tbl <- nightly %>%
+  select(nightly_date, task_status, task_name, build_type, build_links, task_branch_name = crossbow_branch_url) %>%
+  mutate(
+    build_links = format_links(build_links),
+    task_branch_name = format_links(task_branch_name)
+  ) %>%
+  arrange(desc(nightly_date))
+
+names(nightly_sub_tbl) <- make_nice_names(nightly_sub_tbl)
+
+nightly_sub_tbl %>%
+  reactable(
+    filterable = TRUE,
+    highlight = TRUE,
+    wrap = TRUE,
+    bordered = TRUE,
+    resizable = TRUE,
+    defaultPageSize = 25,
+    rowStyle = function(index) {
+      if (nightly_sub_tbl[index, "Task Status"] %in% c("failure", "error")) {
+        list(background = "#ffe4e4")
+      } else {
+        list(background = "#d1e8ff")
+      }
+    },
+    defaultColDef = reactable::colDef(
+      html = TRUE,
+      class = "bw_table_cells",
+      headerClass = "bw_table_header",
+      headerVAlign = "bottom",
+      minWidth = 100
+    ),
+    columns = list(
+      `Task Status` = reactable::colDef(
+        minWidth = 90,
+        filterInput = function(values, name) {
+          dropdown_helper(values, name, error_element_id)
+        }
+      ),
+      `Task Name` = reactable::colDef(
+        minWidth = 240,
+        # filterInput = function(values, name) {
+        #   dropdown_helper(values, name, error_element_id)
+        # }
+      ),
+      `Build Type` = reactable::colDef(
+        minWidth = 100,
+        filterInput = function(values, name) {
+          dropdown_helper(values, name, error_element_id)
+        }
+      ),
+      `Task Branch Name` = reactable::colDef(
+        minWidth = 300
+      )
+    ),
+    elementId = error_element_id
+  )
+```
+
+# Trends
+
+## Summary 
 ```{r}
 pass_pct <- nightly %>%
   count(nightly_date, arrow_commit, build_type, task_status) %>%
@@ -137,7 +323,7 @@ ojs_define(plot_default_date = max(pass_pct$nightly_date) - months(1))
 ojs_define(ojs_pass_pct = pass_pct)
 ```
 
-# Trend
+## Trends
 
 ```{ojs functions}
 trendPlot = function(data) {
@@ -255,179 +441,4 @@ passPctDateSub = passPct
 trendPlot(passPctDateSub)
 ```
 
-# Build Status  
-
-```{r build_status}
-#| results: asis
-# this file can be generated with `archery crossbow check-config > all.yml`
-tasks <- yaml.load_file("../all.yml")
-
-tests <- tasks$groups[["nightly-tests"]]
-packaging <- tasks$groups[["nightly-packaging"]]
-release <- tasks$groups[["nightly-release"]]
-nightly_regex <-  paste0(c(tests, packaging, release), collapse = "|")
-
-active_jobs <- tasks$tasks %>% names() %>% grep(nightly_regex, x = ., value = TRUE)
-
-map_params <- nightly %>%
-  distinct(task_name, build_type) %>%
-  filter(task_name %in% active_jobs)
-
-build_table <- map2_df(map_params$build_type, map_params$task_name, ~ arrow_build_table(nightly, type = .x, task = .y))
-```
-
-
-```{r build_table}
-bs_nightly_tbl <- build_table %>%
-  select(where(~ sum(!is.na(.x)) > 0)) %>% ## remove any columns with no data
-  arrange(most_recent_status, build_type, desc(since_last_successful_build)) %>%
-  rowwise() %>%
-  mutate(
-    since_last_successful_build = ifelse(
-      is.na(since_last_successful_build), "-",
-      pluralize("{since_last_successful_build} day{?s}")
-    )
-  ) %>%
-  ungroup()
-
-## Need to sort columns at this level because of variable fail dates
-## TODO: find something a little less hacky
-bs_nightly_tbl_sorted <- bs_nightly_tbl[, rev(sort(names(bs_nightly_tbl)))] %>%
-  relocate(any_of("most_recent_failure"), .after = last_col()) %>%
-  relocate(any_of(c("last_successful_build", "first_failure")), .after = last_successful_commit) %>%
-  relocate(build_type, .before = task_name)
-
-## set a row number such all the failing builds are always displayed with a lower bound of 25
-tbl_row_n <- bs_nightly_tbl_sorted %>%
-  filter(most_recent_status == "failing") %>%
-  count() %>%
-  max(., 25)
-
-names(bs_nightly_tbl_sorted) <- make_nice_names(bs_nightly_tbl_sorted)
-
-## html element id
-build_element_id <- "build_status"
-
-bs_nightly_tbl_sorted %>%
-  reactable(
-    filterable = TRUE,
-    highlight = TRUE,
-    wrap = TRUE,
-    bordered = TRUE,
-    defaultPageSize = tbl_row_n,
-    rowStyle = function(index) {
-      if (bs_nightly_tbl_sorted[index, "Most Recent Status"] == "failing") {
-        list(background = "#ffe4e4")
-      } else {
-        list(background = "#d1e8ff")
-      }
-    },
-    defaultColDef = reactable::colDef(
-      html = TRUE,
-      class = "bw_table_cells",
-      headerClass = "bw_table_header",
-      headerVAlign = "bottom",
-      width = 50
-    ),
-    columns = list(
-      `Build Type` = reactable::colDef(
-        width = 100,
-        filterInput = function(values, name) {
-          dropdown_helper(values, name, build_element_id)
-        }
-      ),
-      `Task Name` = reactable::colDef(
-        width = 150
-      ),
-      `Since Last Successful Build` = reactable::colDef(
-        width = 100,
-        filterInput = function(values, name) {
-          dropdown_helper(values, name, build_element_id)
-        }
-      ),
-      `Most Recent Status` = reactable::colDef(
-        width = 85,
-        filterInput = function(values, name) {
-          dropdown_helper(values, name, build_element_id)
-        }
-      ),
-      `Last Successful Commit` = reactable::colDef(
-        width = 90
-      ),
-      `Last Successful Build` = reactable::colDef(
-        width = 80
-      ),
-      `First Failure` = reactable::colDef(
-        width = 70
-      ),
-      `Most Recent Failure` = reactable::colDef(
-        width = 70
-      )
-    ),
-    elementId = build_element_id
-  )
-```
-
-# Logs
-
-```{r error-logs}
-#| results: asis
-#| eval: true
-
-error_element_id <- "error-logs-id"
-nightly_sub_tbl <- nightly %>%
-  select(nightly_date, task_status, task_name, build_type, build_links, task_branch_name = crossbow_branch_url) %>%
-  mutate(
-    build_links = format_links(build_links),
-    task_branch_name = format_links(task_branch_name)
-  ) %>%
-  arrange(desc(nightly_date))
-
-names(nightly_sub_tbl) <- make_nice_names(nightly_sub_tbl)
-
-nightly_sub_tbl %>%
-  reactable(
-    filterable = TRUE,
-    highlight = TRUE,
-    wrap = TRUE,
-    bordered = TRUE,
-    rowStyle = function(index) {
-      if (nightly_sub_tbl[index, "Task Status"] %in% c("failure", "error")) {
-        list(background = "#ffe4e4")
-      } else {
-        list(background = "#d1e8ff")
-      }
-    },
-    defaultColDef = reactable::colDef(
-      html = TRUE,
-      class = "bw_table_cells",
-      headerClass = "bw_table_header",
-      headerVAlign = "bottom",
-      width = 100
-    ),
-    columns = list(
-      `Task Status` = reactable::colDef(
-        width = 90,
-        filterInput = function(values, name) {
-          dropdown_helper(values, name, error_element_id)
-        }
-      ),
-      `Task Name` = reactable::colDef(
-        width = 240,
-        # filterInput = function(values, name) {
-        #   dropdown_helper(values, name, error_element_id)
-        # }
-      ),
-      `Build Type` = reactable::colDef(
-        width = 100,
-        filterInput = function(values, name) {
-          dropdown_helper(values, name, error_element_id)
-        }
-      ),
-      `Task Branch Name` = reactable::colDef(
-        width = 300
-      )
-    ),
-    elementId = error_element_id
-  )
-```
+:::
