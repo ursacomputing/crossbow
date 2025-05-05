@@ -4,10 +4,6 @@ library(lubridate)
 library(glue)
 library(tidyr)
 
-is_dev <- function() {
-  Sys.getenv("GITHUB_ACTIONS") != "true"
-}
-
 dropdown_helper <- function(values, name, element_id) {
   htmltools::tags$select(
     # Set to undefined to clear the filter
