@@ -8,10 +8,12 @@ on:
         required: true
         default: '30'
         type: string
-
   schedule:
     # Mondays
     - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
 
 jobs:
   token-expiration-check:
@@ -24,8 +26,6 @@ jobs:
       - name: Checkout Crossbow
         uses: actions/checkout@v3
         with:
-          # If we use github.token then the push will not trigger CI
-          token: ${{ secrets.CROSSBOW_GITHUB_TOKEN }}
           path: crossbow
           fetch-depth: 0
       - uses: actions/setup-python@v4
@@ -42,8 +42,9 @@ jobs:
           echo "Checking whether to notify on token expiration date"
           archery crossbow notify-token-expiration \
             --send \
+            --smtp-server 'in-v3.mailjet.com' \
             --sender-name Crossbow \
-            --sender-email 'crossbow@ursacomputing.com' \
+            --sender-email 'builds@apache.arrow.org' \
             --recipient-email 'builds@arrow.apache.org' \
             --smtp-user ${{ secrets.CROSSBOW_SMTP_USER }} \
             --smtp-password ${{ secrets.CROSSBOW_SMTP_PASSWORD }} \
