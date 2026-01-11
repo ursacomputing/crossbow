@@ -1,0 +1,220 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# NOTE: must set "Crossbow" as name to have the badge links working in the
+# github comment reports!
+name: Crossbow
+on:
+  push:
+    branches:
+      - "*-github-*"
+
+env:
+  ARCHERY_DEBUG: 1
+
+
+permissions:
+  packages: write
+
+jobs:
+  build:
+    name: "Build wheel for manylinux 2-28"
+    runs-on: ubuntu-24.04-arm
+    env:
+      # archery uses these environment variables
+      ARCH: arm64v8
+      PYTHON: "3.11"
+      PYTHON_ABI_TAG: "cp311"
+      PYTHON_IMAGE_TAG: "3.11"
+
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: arrow
+          repository: apache/arrow
+          ref: ec56b377340feb8d46b289342b403aa489effaa1
+          submodules: recursive
+
+      - name: Free up disk space
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        shell: bash
+        run: |
+          arrow/ci/scripts/util_free_space.sh
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          cache: 'pip'
+          python-version: 3.12
+      - name: Install Archery
+        shell: bash
+        run: pip install -e arrow/dev/archery[all]
+
+      - name: Login to Dockerhub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+
+      # Detect free-threaded Python builds
+      - name: Prepare
+        run: |
+          if [[ "${PYTHON_ABI_TAG}" == *t ]]; then
+            test_image_prefix=python-free-threaded
+          else
+            test_image_prefix=python
+          fi
+          echo "TEST_IMAGE_PREFIX=${test_image_prefix}" >> ${GITHUB_ENV}
+
+      - name: Build wheel
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "manylinux" = "musllinux" ] && [ "arm64" = "arm64" ]; then
+            # We can't use NuGet on musl arm systems because the official NuGet binary for arm doesn't exist.
+            :
+          else
+            export VCPKG_BINARY_SOURCES="clear;nuget,GitHub,readwrite"
+          fi
+          archery docker run \
+            -e SETUPTOOLS_SCM_PRETEND_VERSION=23.0.0.dev343 \
+            python-wheel-manylinux-2-28
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: arrow/python/repaired_wheels/*.whl
+
+      # TODO(kszucs): auditwheel show
+      - name: Test wheel
+        shell: bash
+        run: |
+          source arrow/ci/scripts/util_enable_core_dumps.sh
+          archery docker run ${TEST_IMAGE_PREFIX}-wheel-manylinux-test-imports
+          archery docker run ${TEST_IMAGE_PREFIX}-wheel-manylinux-test-unittests
+
+      - name: Test wheel on AlmaLinux 8
+        shell: bash
+        if: |
+          '3.11' == '3.12' && 'manylinux' == 'manylinux'
+        env:
+          ALMALINUX: "8"
+        run: |
+          archery docker run \
+            -e ARROW_GANDIVA=OFF \
+            -e TEST_DEFAULT=0 \
+            -e TEST_PYARROW_VERSION=23.0.0.dev343 \
+            -e TEST_PYTHON_VERSIONS=3.11 \
+            -e TEST_WHEEL_PLATFORM_TAGS=manylinux_2_28_aarch64 \
+            -e TEST_WHEELS=1 \
+            almalinux-verify-rc
+
+      - name: Test wheel on Ubuntu 22.04
+        shell: bash
+        if: |
+          '3.11' == '3.10' && 'manylinux' == 'manylinux'
+        env:
+          UBUNTU: "22.04"
+        run: |
+          archery docker run \
+            -e TEST_DEFAULT=0 \
+            -e TEST_PYARROW_VERSION=23.0.0.dev343 \
+            -e TEST_PYTHON_VERSIONS=3.11 \
+            -e TEST_WHEEL_PLATFORM_TAGS=manylinux_2_28_aarch64 \
+            -e TEST_WHEELS=1 \
+            ubuntu-verify-rc
+
+      - name: Test wheel on Ubuntu 24.04
+        shell: bash
+        if: |
+          '3.11' == '3.12' && 'manylinux' == 'manylinux'
+        env:
+          UBUNTU: "24.04"
+        run: |
+          archery docker run \
+            -e TEST_DEFAULT=0 \
+            -e TEST_PYARROW_VERSION=23.0.0.dev343 \
+            -e TEST_PYTHON_VERSIONS=3.11 \
+            -e TEST_WHEEL_PLATFORM_TAGS=manylinux_2_28_aarch64 \
+            -e TEST_WHEELS=1 \
+            ubuntu-verify-rc
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Checkout Crossbow
+        uses: actions/checkout@v4
+        with:
+          path: crossbow
+          ref: nightly-packaging-2026-01-11-0
+      - name: Setup Crossbow
+        shell: bash
+        run: |
+          python3 -m pip install -e arrow/dev/archery[crossbow]
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Upload artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            upload-artifacts \
+            --sha nightly-packaging-2026-01-11-0-github-wheel-manylinux-2-28-cp311-cp311-arm64 \
+            --tag nightly-packaging-2026-01-11-0-github-wheel-manylinux-2-28-cp311-cp311-arm64 \
+            "arrow/python/repaired_wheels/*.whl"
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Verify uploaded artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            status \
+            --task-filter 'wheel-manylinux-2-28-cp311-cp311-arm64' \
+            --no-fetch \
+            --validate \
+            nightly-packaging-2026-01-11-0
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Upload wheel to Anaconda scientific-python
+        shell: bash
+        run: |
+          # check if completion actually expands to wheel files
+          # to prevent empty dirs from failing silently
+          if ! compgen -G "arrow/python/repaired_wheels/*.whl" > /dev/null; then
+              echo "No wheel files found!"
+              exit 1
+          fi
+          python3 -m pip install git+https://github.com/Anaconda-Platform/anaconda-client.git@1.12.3
+          anaconda -t ${CROSSBOW_SCIENTIFIC_PYTHON_UPLOAD_TOKEN} upload --force -u scientific-python-nightly-wheels --label main arrow/python/repaired_wheels/*.whl
+        env:
+          CROSSBOW_SCIENTIFIC_PYTHON_UPLOAD_TOKEN: ${{ secrets.CROSSBOW_SCIENTIFIC_PYTHON_UPLOAD_TOKEN }}
+
+
+      - name: Push Docker images
+        shell: bash
+        run: |
+          archery docker push python-wheel-manylinux-2-28
+          archery docker push ${TEST_IMAGE_PREFIX}-wheel-manylinux-test-unittests
