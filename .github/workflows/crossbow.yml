@@ -1,0 +1,106 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# NOTE: must set "Crossbow" as name to have the badge links working in the
+# github comment reports!
+name: Crossbow
+on:
+  push:
+    branches:
+      - "*-github-*"
+
+env:
+  ARCHERY_DEBUG: 1
+
+
+jobs:
+  build:
+    name: "Build sdist"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: arrow
+          repository: apache/arrow
+          ref: ec56b377340feb8d46b289342b403aa489effaa1
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          cache: 'pip'
+          python-version: 3.12
+      - name: Install Archery
+        shell: bash
+        run: pip install -e arrow/dev/archery[all]
+
+
+      - name: Build sdist
+        run: |
+          archery docker run python-sdist
+          archery docker push python-sdist || :
+        env:
+          PYARROW_VERSION: 23.0.0.dev343
+
+      - name: Test sdist
+        run: archery docker run ubuntu-python-sdist-test
+        env:
+          UBUNTU: 22.04
+          PYARROW_VERSION: 23.0.0.dev343
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Checkout Crossbow
+        uses: actions/checkout@v4
+        with:
+          path: crossbow
+          ref: nightly-packaging-2026-01-11-0
+      - name: Setup Crossbow
+        shell: bash
+        run: |
+          python3 -m pip install -e arrow/dev/archery[crossbow]
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Upload artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            upload-artifacts \
+            --sha nightly-packaging-2026-01-11-0-github-python-sdist \
+            --tag nightly-packaging-2026-01-11-0-github-python-sdist \
+            "arrow/python/dist/*.tar.gz"
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Verify uploaded artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            status \
+            --task-filter 'python-sdist' \
+            --no-fetch \
+            --validate \
+            nightly-packaging-2026-01-11-0
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
