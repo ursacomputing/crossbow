@@ -1,0 +1,143 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# NOTE: must set "Crossbow" as name to have the badge links working in the
+# github comment reports!
+name: Crossbow
+on:
+  push:
+    branches:
+      - "*-github-*"
+
+env:
+  ARCHERY_DEBUG: 1
+
+
+jobs:
+  build:
+    name: "Build wheel for Windows ARM64"
+    runs-on: "windows-11-arm"
+    timeout-minutes: 240
+    env:
+      PYTHON_CMD: "py -3.14-arm64"
+      CMAKE_BUILD_TYPE: release
+    steps:
+      - name: Checkout Arrow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: arrow
+          repository: MugundanMCW/arrow
+          ref: 41418e0df78d9449ee3e9354f7ce3148df02419c
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          architecture: "arm64"
+
+      - name: Install Python build dependencies
+        shell: cmd
+        run: |
+          %PYTHON_CMD% -m pip install --upgrade pip
+          %PYTHON_CMD% -m pip install cython numpy setuptools_scm setuptools wheel
+          %PYTHON_CMD% -m pip install pandas pytest hypothesis pytz
+          
+      - name: Cache vcpkg dependencies
+        uses: actions/cache@v4
+        with:
+          path: C:\vcpkg\installed
+          key: "vcpkg-installed-windows-arm64-${{ hashFiles('arrow/ci/vcpkg/vcpkg.json') }}"      
+          restore-keys: vcpkg-installed-windows-arm64-
+
+      - name: Install vcpkg dependencies
+        shell: cmd
+        run: |
+          cd arrow\ci\vcpkg
+          C:\vcpkg\vcpkg.exe install ^
+            --binarysource="clear;x-gha,readwrite" ^
+            --x-install-root=C:\vcpkg\installed ^
+            --x-manifest-root=. ^
+            --x-feature=flight ^
+            --x-feature=json ^
+            --x-feature=gcs ^
+            --x-feature=orc ^
+            --x-feature=parquet ^
+            --x-feature=s3
+            
+      - name: Build Arrow C++ and PyArrow wheel
+        shell: cmd
+        env:
+          ARCH: "ARM64"
+          SETUPTOOLS_SCM_PRETEND_VERSION: "24.0.0.dev110"
+        run: |
+          call "arrow\ci\scripts\python_wheel_windows_build.bat"
+      
+      - name: Test wheel
+        shell: cmd
+        env:
+          ARCH: "ARM64"
+        run: |
+          call "arrow\ci\scripts\python_wheel_windows_test.bat"
+          
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: arrow/python/repaired_wheels/*.whl
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Checkout Crossbow
+        uses: actions/checkout@v4
+        with:
+          path: crossbow
+          ref: actions-cc9438ddaa
+      - name: Setup Crossbow
+        shell: bash
+        run: |
+          python3 -m pip install -e arrow/dev/archery[crossbow]
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Upload artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            upload-artifacts \
+            --sha actions-cc9438ddaa-github-wheel-windows-cp314-cp314-arm64 \
+            --tag actions-cc9438ddaa-github-wheel-windows-cp314-cp314-arm64 \
+            "arrow/python/repaired_wheels/*.whl"
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Verify uploaded artifacts
+        shell: bash
+        run: |
+          archery crossbow \
+            --queue-path $(pwd)/crossbow \
+            --queue-remote https://github.com/ursacomputing/crossbow \
+            status \
+            --task-filter 'wheel-windows-cp314-cp314-arm64' \
+            --no-fetch \
+            --validate \
+            actions-cc9438ddaa
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      
